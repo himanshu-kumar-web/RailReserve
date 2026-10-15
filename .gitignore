@@ -1,0 +1,39 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+
+# Generated outputs in every module
+**/build/
+*.apk
+*.aab
+*.apks
+*.class
+
+# Local IDE and machine settings
+/.idea/
+/.kotlin/
+/.java/
+/.vscode/
+*.hprof
+
+# Local credentials and signing material
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+/secrets.properties
+local.properties
