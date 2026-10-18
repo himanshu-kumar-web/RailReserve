@@ -2,4 +2,9 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="brand">#126B59</color>
+    <color name="ink">#18332E</color>
+    <color name="muted">#60746F</color>
+    <color name="surface">#FFFFFFFF</color>
+    <color name="surface_soft">#F3F7F5</color>
 </resources>

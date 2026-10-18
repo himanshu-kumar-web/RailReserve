@@ -1,0 +1,6 @@
+package com.railreserve.model;
+public final class TrainSearchResult {
+    private final String number,name,source,destination,departure,arrival,date; private final int arrivalDayOffset,fare,totalSeats,availableSeats; private final TravelClass travelClass;
+    public TrainSearchResult(String number,String name,String source,String destination,String departure,String arrival,int offset,String date,TravelClass c,int fare,int total,int available){this.number=number;this.name=name;this.source=source;this.destination=destination;this.departure=departure;this.arrival=arrival;this.arrivalDayOffset=offset;this.date=date;this.travelClass=c;this.fare=fare;this.totalSeats=total;this.availableSeats=available;}
+    public String getNumber(){return number;} public String getName(){return name;} public String getSource(){return source;} public String getDestination(){return destination;} public String getDeparture(){return departure;} public String getArrival(){return arrival;} public int getArrivalDayOffset(){return arrivalDayOffset;} public String getDate(){return date;} public TravelClass getTravelClass(){return travelClass;} public int getFare(){return fare;} public int getTotalSeats(){return totalSeats;} public int getAvailableSeats(){return availableSeats;}
+}
