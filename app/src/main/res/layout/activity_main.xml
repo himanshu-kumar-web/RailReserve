@@ -1,22 +1,219 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/main" android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true" android:background="@color/surface_soft">
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="24dp">
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="RAILRESERVE" android:textStyle="bold" android:textSize="14sp" android:textColor="@color/brand" android:letterSpacing="0.12" android:layout_marginTop="20dp" />
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Find your train" android:textSize="30sp" android:textStyle="bold" android:textColor="@color/ink" android:layout_marginTop="12dp" />
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Plan your next journey across India." android:textSize="16sp" android:textColor="@color/muted" android:layout_marginTop="4dp" android:layout_marginBottom="24dp" />
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp" android:background="@drawable/card_background" android:elevation="3dp">
-            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="FROM" android:textColor="@color/muted" android:textSize="12sp" android:textStyle="bold" />
-            <AutoCompleteTextView android:id="@+id/sourceInput" android:layout_width="match_parent" android:layout_height="52dp" android:hint="Enter origin station" android:singleLine="true" android:inputType="textCapWords" android:paddingStart="12dp" android:background="@drawable/input_background" />
-            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="TO" android:textColor="@color/muted" android:textSize="12sp" android:textStyle="bold" android:layout_marginTop="16dp" />
-            <AutoCompleteTextView android:id="@+id/destinationInput" android:layout_width="match_parent" android:layout_height="52dp" android:hint="Enter destination station" android:singleLine="true" android:inputType="textCapWords" android:paddingStart="12dp" android:background="@drawable/input_background" />
-            <Button android:id="@+id/swapButton" android:layout_width="wrap_content" android:layout_height="48dp" android:text="⇅  Swap stations" android:textAllCaps="false" android:layout_gravity="end" />
-            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="JOURNEY DATE" android:textColor="@color/muted" android:textSize="12sp" android:textStyle="bold" android:layout_marginTop="10dp" />
-            <Button android:id="@+id/dateButton" android:layout_width="match_parent" android:layout_height="52dp" android:gravity="start|center_vertical" android:textAllCaps="false" android:textColor="@color/ink" android:backgroundTint="@color/surface" />
-            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="TRAVEL CLASS" android:textColor="@color/muted" android:textSize="12sp" android:textStyle="bold" android:layout_marginTop="14dp" />
-            <Spinner android:id="@+id/classSpinner" android:layout_width="match_parent" android:layout_height="52dp" android:background="@drawable/input_background" android:paddingStart="10dp" />
-            <Button android:id="@+id/searchButton" android:layout_width="match_parent" android:layout_height="56dp" android:text="Search trains" android:textAllCaps="false" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/white" android:backgroundTint="@color/brand" android:layout_marginTop="22dp" />
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface_soft"
+    android:clipToPadding="false"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="20dp"
+        android:paddingTop="18dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="24dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/hero_background"
+            android:elevation="2dp"
+            android:orientation="vertical"
+            android:padding="22dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/chip_brand"
+                android:paddingStart="10dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="6dp"
+                android:text="RAILRESERVE  /  JOURNEY PLANNER"
+                android:textColor="@color/white"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.06" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Find your\nnext train"
+                android:textColor="@color/white"
+                android:textSize="30sp"
+                android:textStyle="bold"
+                android:fontFamily="sans" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Choose your route and travel details to get started."
+                android:textColor="#D9E3F0"
+                android:textSize="14sp" />
         </LinearLayout>
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Schedules and seat availability are fictional demonstrations. This app is not connected to live railway inventory." android:textColor="@color/muted" android:textSize="13sp" android:gravity="center" android:layout_marginTop="20dp" android:layout_marginBottom="24dp" />
-        <Button android:id="@+id/myBookingsButton" android:layout_width="match_parent" android:layout_height="52dp" android:text="My bookings" android:textAllCaps="false" android:textColor="@color/brand" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:background="@drawable/card_background"
+            android:elevation="2dp"
+            android:orientation="vertical"
+            android:padding="18dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="YOUR ROUTE"
+                android:textColor="@color/muted"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.1" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:text="FROM"
+                android:textColor="@color/ink"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <AutoCompleteTextView
+                android:id="@+id/sourceInput"
+                android:layout_width="match_parent"
+                android:layout_height="54dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/input_background"
+                android:completionThreshold="1"
+                android:hint="Enter origin station"
+                android:inputType="textCapWords"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:singleLine="true"
+                android:textColor="@color/ink"
+                android:textColorHint="@color/muted"
+                android:textSize="15sp" />
+
+            <Button
+                android:id="@+id/swapButton"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_gravity="end"
+                android:layout_marginTop="2dp"
+                android:backgroundTint="@color/teal_soft"
+                android:minWidth="0dp"
+                android:text="⇅   Swap route"
+                android:textAllCaps="false"
+                android:textColor="@color/brand_dark"
+                android:textSize="13sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="TO"
+                android:textColor="@color/ink"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <AutoCompleteTextView
+                android:id="@+id/destinationInput"
+                android:layout_width="match_parent"
+                android:layout_height="54dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/input_background"
+                android:completionThreshold="1"
+                android:hint="Enter destination station"
+                android:inputType="textCapWords"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:singleLine="true"
+                android:textColor="@color/ink"
+                android:textColorHint="@color/muted"
+                android:textSize="15sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:text="JOURNEY DATE"
+                android:textColor="@color/ink"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/dateButton"
+                android:layout_width="match_parent"
+                android:layout_height="54dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/field_button_background"
+                android:gravity="center_vertical|start"
+                android:minHeight="48dp"
+                android:paddingStart="14dp"
+                android:textAllCaps="false"
+                android:textColor="@color/ink"
+                android:textSize="15sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:text="TRAVEL CLASS"
+                android:textColor="@color/ink"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <Spinner
+                android:id="@+id/classSpinner"
+                android:layout_width="match_parent"
+                android:layout_height="54dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/input_background"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:popupBackground="@color/surface" />
+
+            <Button
+                android:id="@+id/searchButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginTop="20dp"
+                android:background="@drawable/button_primary"
+                android:minHeight="48dp"
+                android:text="Search trains"
+                android:textAllCaps="false"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="14dp"
+            android:layout_marginEnd="8dp"
+            android:gravity="center"
+            android:text="Fictional schedules for demonstration. Not connected to live railway inventory."
+            android:textColor="@color/muted"
+            android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/myBookingsButton"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/button_secondary"
+            android:minHeight="48dp"
+            android:text="My bookings"
+            android:textAllCaps="false"
+            android:textColor="@color/brand_dark"
+            android:textSize="15sp"
+            android:textStyle="bold" />
     </LinearLayout>
 </ScrollView>
