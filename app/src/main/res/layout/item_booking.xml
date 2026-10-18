@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/card_background" android:padding="16dp">
+    <TextView android:id="@+id/bookingPnr" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/brand" android:textStyle="bold" android:textSize="16sp" />
+    <TextView android:id="@+id/bookingTrain" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/ink" android:textStyle="bold" android:layout_marginTop="8dp" />
+    <TextView android:id="@+id/bookingRoute" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/muted" android:layout_marginTop="4dp" />
+    <TextView android:id="@+id/bookingPassenger" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/ink" android:layout_marginTop="8dp" />
+    <TextView android:id="@+id/bookingClassFare" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/muted" android:layout_marginTop="4dp" />
+    <TextView android:id="@+id/bookingStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:textStyle="bold" android:layout_marginTop="8dp" />
+    <Button android:id="@+id/cancelBookingButton" android:layout_width="match_parent" android:layout_height="48dp" android:text="Cancel booking" android:textAllCaps="false" android:textColor="#9A3328" android:layout_marginTop="8dp" />
+</LinearLayout>

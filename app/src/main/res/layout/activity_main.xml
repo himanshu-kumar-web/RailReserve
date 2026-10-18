@@ -17,5 +17,6 @@
             <Button android:id="@+id/searchButton" android:layout_width="match_parent" android:layout_height="56dp" android:text="Search trains" android:textAllCaps="false" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/white" android:backgroundTint="@color/brand" android:layout_marginTop="22dp" />
         </LinearLayout>
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Schedules and seat availability are fictional demonstrations. This app is not connected to live railway inventory." android:textColor="@color/muted" android:textSize="13sp" android:gravity="center" android:layout_marginTop="20dp" android:layout_marginBottom="24dp" />
+        <Button android:id="@+id/myBookingsButton" android:layout_width="match_parent" android:layout_height="52dp" android:text="My bookings" android:textAllCaps="false" android:textColor="@color/brand" />
     </LinearLayout>
 </ScrollView>

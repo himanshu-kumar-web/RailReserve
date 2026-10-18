@@ -12,6 +12,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
         <activity android:name=".ui.TrainResultsActivity" android:exported="false" />
+        <activity android:name=".ui.BookingActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ui.MyBookingsActivity" android:exported="false" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

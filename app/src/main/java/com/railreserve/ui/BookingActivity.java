@@ -1,0 +1,34 @@
+package com.railreserve.ui;
+
+import android.content.Intent;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ProgressBar;
+import android.widget.Spinner;
+import android.widget.TextView;
+import android.widget.Toast;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import com.railreserve.R;
+import com.railreserve.model.Booking;
+import com.railreserve.model.BookingRequest;
+import com.railreserve.model.Seat;
+import com.railreserve.model.TravelClass;
+import com.railreserve.service.BookingService;
+import com.railreserve.service.BookingServiceFactory;
+import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+public class BookingActivity extends AppCompatActivity {
+    public static final String EXTRA_JOURNEY_ID="journey_id",EXTRA_TRAIN_ID="train_id",EXTRA_TRAIN_NUMBER="train_number",EXTRA_TRAIN_NAME="train_name",EXTRA_SOURCE="source",EXTRA_DESTINATION="destination",EXTRA_DATE="date",EXTRA_DEPARTURE="departure",EXTRA_ARRIVAL="arrival",EXTRA_ARRIVAL_OFFSET="arrival_offset",EXTRA_CLASS="travel_class";
+    private final ExecutorService executor=Executors.newSingleThreadExecutor(); private BookingService service; private boolean destroyed,submitting; private long journeyId; private TravelClass travelClass; private Spinner seatSpinner,genderSpinner; private EditText nameInput,ageInput; private Button confirmButton; private ProgressBar progress; private TextView seatStatus; private ArrayAdapter<Seat> seatAdapter;
+    @Override protected void onCreate(Bundle state){super.onCreate(state);setContentView(R.layout.activity_booking);service=BookingServiceFactory.create(getApplicationContext());journeyId=getIntent().getLongExtra(EXTRA_JOURNEY_ID,-1);try{travelClass=TravelClass.fromCode(getIntent().getStringExtra(EXTRA_CLASS));}catch(Exception e){travelClass=null;}((TextView)findViewById(R.id.bookingTrainSummary)).setText("Train "+getIntent().getStringExtra(EXTRA_TRAIN_NUMBER)+" · "+getIntent().getStringExtra(EXTRA_TRAIN_NAME)+"\n"+getIntent().getStringExtra(EXTRA_SOURCE)+" → "+getIntent().getStringExtra(EXTRA_DESTINATION)+"\n"+getIntent().getStringExtra(EXTRA_DATE)+" · "+getIntent().getStringExtra(EXTRA_DEPARTURE)+" – "+getIntent().getStringExtra(EXTRA_ARRIVAL)+(getIntent().getIntExtra(EXTRA_ARRIVAL_OFFSET,0)>0?" (+1 day)":"")+"\n"+(travelClass==null?"Invalid class":travelClass.getLabel()));seatSpinner=findViewById(R.id.seatSpinner);genderSpinner=findViewById(R.id.genderSpinner);nameInput=findViewById(R.id.passengerNameInput);ageInput=findViewById(R.id.passengerAgeInput);confirmButton=findViewById(R.id.confirmBookingButton);progress=findViewById(R.id.seatProgress);seatStatus=findViewById(R.id.seatStatus);seatAdapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,new ArrayList<>());seatAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);seatSpinner.setAdapter(seatAdapter);ArrayAdapter<String> genders=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,new String[]{"Select gender","Female","Male","Other"});genders.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);genderSpinner.setAdapter(genders);confirmButton.setEnabled(false);confirmButton.setOnClickListener(v->submitBooking());if(journeyId<=0||travelClass==null){seatStatus.setText("Invalid journey information. Return to search and choose a train.");progress.setVisibility(View.GONE);}else loadAvailableSeats();}
+    private void loadAvailableSeats(){progress.setVisibility(View.VISIBLE);seatStatus.setVisibility(View.GONE);executor.execute(()->{try{java.util.List<Seat> seats=service.getAvailableSeats(journeyId,travelClass.getCode());runOnUiThread(()->{if(destroyed)return;progress.setVisibility(View.GONE);seatAdapter.clear();seatAdapter.addAll(seats);confirmButton.setEnabled(!seats.isEmpty());if(seats.isEmpty()){seatStatus.setText("No seats remain in this class for this journey.");seatStatus.setVisibility(View.VISIBLE);}});}catch(Exception e){runOnUiThread(()->{if(destroyed)return;progress.setVisibility(View.GONE);seatStatus.setText(e.getMessage()==null?"Could not load seats.":e.getMessage());seatStatus.setVisibility(View.VISIBLE);});}});}
+    private void submitBooking(){if(submitting)return;String name=nameInput.getText().toString().trim();if(name.length()<2||name.length()>80){nameInput.setError("Enter a name of 2 to 80 characters.");return;}int age;try{age=Integer.parseInt(ageInput.getText().toString().trim());}catch(Exception e){ageInput.setError("Enter an age from 1 to 120.");return;}if(age<1||age>120){ageInput.setError("Enter an age from 1 to 120.");return;}if(genderSpinner.getSelectedItemPosition()==0){Toast.makeText(this,"Choose a gender.",Toast.LENGTH_SHORT).show();return;}Seat selected=(Seat)seatSpinner.getSelectedItem();if(selected==null){Toast.makeText(this,"Choose an available seat.",Toast.LENGTH_SHORT).show();return;}submitting=true;confirmButton.setEnabled(false);confirmButton.setText("Booking…");progress.setVisibility(View.VISIBLE);BookingRequest request=new BookingRequest(journeyId,selected.getId(),travelClass,name,age,String.valueOf(genderSpinner.getSelectedItem()));executor.execute(()->{try{Booking booking=service.createBooking(request);runOnUiThread(()->{if(destroyed)return;progress.setVisibility(View.GONE);submitting=false;confirmButton.setText("Confirm booking");showConfirmation(booking);});}catch(Exception e){runOnUiThread(()->{if(destroyed)return;progress.setVisibility(View.GONE);submitting=false;confirmButton.setText("Confirm booking");confirmButton.setEnabled(true);new AlertDialog.Builder(this).setTitle("Booking not completed").setMessage(e.getMessage()==null?"Please try another seat.":e.getMessage()).setPositiveButton("Choose another seat",(d,w)->loadAvailableSeats()).setNegativeButton("Close",null).show();});}});}
+    private void showConfirmation(Booking b){String text="RailReserve demo PNR: "+b.getPnr()+"\n\nTrain "+b.getTrainNumber()+" · "+b.getTrainName()+"\n"+b.getSource()+" → "+b.getDestination()+"\nDeparture: "+b.getJourneyDate()+" at "+b.getDeparture()+"\nArrival: "+b.getArrival()+(b.getArrivalDayOffset()>0?" next day":"")+"\nPassenger: "+b.getPassengerName()+", age "+b.getAge()+"\nSeat: "+b.getCoach()+" - "+b.getSeatNumber()+" · "+b.getTravelClass().getLabel()+"\nFare: ₹"+b.getFare()+"\nStatus: CONFIRMED";new AlertDialog.Builder(this).setTitle("✓ Booking confirmed").setMessage(text).setCancelable(false).setPositiveButton("My bookings",(d,w)->{startActivity(new Intent(this,MyBookingsActivity.class));finish();}).setNegativeButton("Train search",(d,w)->{finishAffinity();startActivity(new Intent(this,com.railreserve.MainActivity.class));}).show();}
+    @Override protected void onDestroy(){destroyed=true;executor.shutdownNow();super.onDestroy();}
+}

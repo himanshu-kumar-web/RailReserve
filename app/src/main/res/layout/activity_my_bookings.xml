@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/bookingsRoot" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@color/surface_soft" android:padding="20dp">
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="My bookings" android:textSize="27sp" android:textStyle="bold" android:textColor="@color/ink" android:layout_marginTop="12dp" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Your local RailReserve demo reservations" android:textColor="@color/muted" android:layout_marginBottom="14dp" />
+    <ProgressBar android:id="@+id/bookingsProgress" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center_horizontal" android:visibility="gone" />
+    <TextView android:id="@+id/bookingsStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:textColor="@color/muted" android:padding="24dp" android:visibility="gone" />
+    <ListView android:id="@+id/bookingsList" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:divider="@android:color/transparent" android:dividerHeight="12dp" />
+</LinearLayout>

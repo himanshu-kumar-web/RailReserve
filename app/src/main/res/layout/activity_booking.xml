@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true" android:background="@color/surface_soft">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="22dp">
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Complete your booking" android:textColor="@color/ink" android:textStyle="bold" android:textSize="26sp" android:layout_marginTop="18dp" />
+        <TextView android:id="@+id/bookingTrainSummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/card_background" android:padding="16dp" android:textColor="@color/ink" android:textSize="15sp" android:layout_marginTop="16dp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="AVAILABLE SEAT" android:textColor="@color/muted" android:textStyle="bold" android:textSize="12sp" android:layout_marginTop="20dp" />
+        <Spinner android:id="@+id/seatSpinner" android:layout_width="match_parent" android:layout_height="52dp" android:background="@drawable/input_background" android:paddingStart="10dp" />
+        <ProgressBar android:id="@+id/seatProgress" android:layout_width="32dp" android:layout_height="32dp" android:layout_gravity="center_horizontal" android:visibility="gone" />
+        <TextView android:id="@+id/seatStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/muted" android:visibility="gone" android:padding="10dp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="PASSENGER DETAILS" android:textColor="@color/muted" android:textStyle="bold" android:textSize="12sp" android:layout_marginTop="16dp" />
+        <EditText android:id="@+id/passengerNameInput" android:layout_width="match_parent" android:layout_height="54dp" android:hint="Full name" android:inputType="textPersonName|textCapWords" android:maxLength="80" android:paddingStart="12dp" android:background="@drawable/input_background" />
+        <EditText android:id="@+id/passengerAgeInput" android:layout_width="match_parent" android:layout_height="54dp" android:hint="Age (1–120)" android:inputType="number" android:maxLength="3" android:layout_marginTop="10dp" android:paddingStart="12dp" android:background="@drawable/input_background" />
+        <Spinner android:id="@+id/genderSpinner" android:layout_width="match_parent" android:layout_height="52dp" android:background="@drawable/input_background" android:paddingStart="10dp" android:layout_marginTop="10dp" />
+        <Button android:id="@+id/confirmBookingButton" android:layout_width="match_parent" android:layout_height="56dp" android:text="Confirm booking" android:textAllCaps="false" android:textColor="@color/white" android:backgroundTint="@color/brand" android:layout_marginTop="24dp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="This creates a local demo reservation. No payment or real railway ticket is issued." android:textColor="@color/muted" android:gravity="center" android:textSize="12sp" android:layout_marginTop="12dp" android:layout_marginBottom="24dp" />
+    </LinearLayout>
+</ScrollView>

@@ -6,4 +6,5 @@
     <TextView android:id="@+id/trainTimes" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/muted" android:layout_marginTop="4dp" />
     <TextView android:id="@+id/trainFare" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="20sp" android:textStyle="bold" android:textColor="@color/brand" android:layout_marginTop="14dp" />
     <TextView android:id="@+id/trainAvailability" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/muted" android:layout_marginTop="3dp" />
+    <Button android:id="@+id/bookTrainButton" android:layout_width="match_parent" android:layout_height="48dp" android:text="Choose seat" android:textAllCaps="false" android:layout_marginTop="12dp" android:backgroundTint="@color/brand" android:textColor="@color/white" />
 </LinearLayout>
