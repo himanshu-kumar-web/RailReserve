@@ -58,7 +58,11 @@ public final class TrainResultAdapter extends BaseAdapter {
         bookButton.setText(result.getAvailableSeats() > 0 ? "Select seat" : "Sold out");
         bookButton.setOnClickListener(v -> {
             if (parent instanceof ListView) {
-                ((ListView) parent).performItemClick(view, position, getItemId(position));
+                ListView list = (ListView) parent;
+                int currentPosition = list.getPositionForView(view);
+                if (currentPosition != ListView.INVALID_POSITION) {
+                    list.performItemClick(view, currentPosition, getItemId(currentPosition));
+                }
             }
         });
         return view;

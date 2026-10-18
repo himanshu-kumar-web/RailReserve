@@ -70,6 +70,56 @@
         android:layout_gravity="center_horizontal"
         android:layout_marginTop="24dp" />
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/card_background"
+        android:elevation="1dp"
+        android:orientation="vertical"
+        android:paddingStart="14dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="6dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="10dp"
+                android:text="SORT"
+                android:textColor="@color/muted"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <Spinner
+                android:id="@+id/resultsSortSpinner"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="@drawable/booking_input_background"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:spinnerMode="dropdown" />
+        </LinearLayout>
+
+        <CheckBox
+            android:id="@+id/availableOnlyCheckBox"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:buttonTint="@color/brand"
+            android:checked="false"
+            android:minHeight="48dp"
+            android:text="Available seats only"
+            android:textColor="@color/ink"
+            android:textSize="14sp" />
+    </LinearLayout>
+
     <TextView
         android:id="@+id/resultsStatus"
         android:layout_width="match_parent"
