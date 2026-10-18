@@ -215,5 +215,17 @@
             android:textColor="@color/brand_dark"
             android:textSize="15sp"
             android:textStyle="bold" />
+        <Button
+            android:id="@+id/findBookingButton"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/button_secondary"
+            android:minHeight="48dp"
+            android:text="Find booking by PNR"
+            android:textAllCaps="false"
+            android:textColor="@color/brand_dark"
+            android:textSize="15sp"
+            android:textStyle="bold" />
     </LinearLayout>
 </ScrollView>
