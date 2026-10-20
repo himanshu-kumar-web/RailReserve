@@ -23,23 +23,14 @@ import com.railreserve.adapter.BookingAdapter;
 import com.railreserve.model.Booking;
 import com.railreserve.service.BookingService;
 import com.railreserve.service.BookingServiceFactory;
+import com.railreserve.service.BookingHistoryOrganizer;
 import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MyBookingsActivity extends AppCompatActivity implements BookingAdapter.CancelListener {
-    private static final int FILTER_ALL = 0;
-    private static final int FILTER_UPCOMING = 1;
-    private static final int FILTER_COMPLETED = 2;
-    private static final int FILTER_CANCELLED = 3;
-    private static final int SORT_NEAREST = 0;
-    private static final int SORT_MOST_RECENT = 1;
-
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final List<Booking> allBookings = new ArrayList<>();
     private BookingService service;
@@ -143,27 +134,17 @@ public class MyBookingsActivity extends AppCompatActivity implements BookingAdap
     }
 
     private void renderBookings() {
-        String query = searchInput.getText().toString().trim().toLowerCase(Locale.ROOT);
+        String query = searchInput.getText().toString().trim();
         int selectedFilter = statusSpinner.getSelectedItemPosition();
-        LocalDate today = LocalDate.now();
-        List<Booking> visible = new ArrayList<>();
-
-        for (Booking booking : allBookings) {
-            if (!matchesStatus(booking, selectedFilter, today)) continue;
-            if (!matchesSearch(booking, query)) continue;
-            visible.add(booking);
-        }
-
-        Comparator<Booking> byDate = (first, second) -> {
-            LocalDate firstDate = parseJourneyDate(first.getJourneyDate());
-            LocalDate secondDate = parseJourneyDate(second.getJourneyDate());
-            if (firstDate == null) return secondDate == null ? 0 : 1;
-            if (secondDate == null) return -1;
-            int comparison = firstDate.compareTo(secondDate);
-            return sortSpinner.getSelectedItemPosition() == SORT_MOST_RECENT
-                    ? -comparison : comparison;
-        };
-        visible.sort(byDate);
+        BookingHistoryOrganizer.StatusFilter[] filters = BookingHistoryOrganizer.StatusFilter.values();
+        BookingHistoryOrganizer.JourneySort[] sorts = BookingHistoryOrganizer.JourneySort.values();
+        BookingHistoryOrganizer.StatusFilter filter = selectedFilter >= 0 && selectedFilter < filters.length
+                ? filters[selectedFilter] : BookingHistoryOrganizer.StatusFilter.ALL;
+        int selectedSort = sortSpinner.getSelectedItemPosition();
+        BookingHistoryOrganizer.JourneySort sort = selectedSort >= 0 && selectedSort < sorts.length
+                ? sorts[selectedSort] : BookingHistoryOrganizer.JourneySort.NEAREST_FIRST;
+        List<Booking> visible = BookingHistoryOrganizer.organize(
+                allBookings, query, filter, sort, LocalDate.now());
         adapter.setBookings(visible);
         emptySearchButton.setVisibility(View.GONE);
 
@@ -171,57 +152,17 @@ public class MyBookingsActivity extends AppCompatActivity implements BookingAdap
             showStatus("No reservations yet. Search for a train to plan your first journey.");
             emptySearchButton.setVisibility(View.VISIBLE);
         } else if (visible.isEmpty()) {
-            showStatus(emptyMessage(selectedFilter, query));
+            showStatus(emptyMessage(filter, query));
         } else {
             status.setVisibility(View.GONE);
         }
     }
 
-    private boolean matchesStatus(Booking booking, int filter, LocalDate today) {
-        boolean cancelled = isCancelled(booking);
-        if (filter == FILTER_ALL) return true;
-        if (filter == FILTER_CANCELLED) return cancelled;
-        if (cancelled) return false;
-
-        LocalDate journeyDate = parseJourneyDate(booking.getJourneyDate());
-        if (journeyDate == null) return false;
-        if (filter == FILTER_UPCOMING) return !journeyDate.isBefore(today);
-        if (filter == FILTER_COMPLETED) return journeyDate.isBefore(today);
-        return true;
-    }
-
-    private boolean matchesSearch(Booking booking, String query) {
-        if (query.isEmpty()) return true;
-        return contains(booking.getPnr(), query)
-                || contains(booking.getTrainName(), query)
-                || contains(booking.getTrainNumber(), query)
-                || contains(booking.getSource(), query)
-                || contains(booking.getDestination(), query);
-    }
-
-    private boolean contains(String value, String query) {
-        return value != null && value.toLowerCase(Locale.ROOT).contains(query);
-    }
-
-    private boolean isCancelled(Booking booking) {
-        return booking.getStatus() != null
-                && "CANCELLED".equalsIgnoreCase(booking.getStatus().trim());
-    }
-
-    private LocalDate parseJourneyDate(String value) {
-        if (value == null || value.trim().isEmpty()) return null;
-        try {
-            return LocalDate.parse(value.trim());
-        } catch (DateTimeParseException exception) {
-            return null;
-        }
-    }
-
-    private String emptyMessage(int filter, String query) {
+    private String emptyMessage(BookingHistoryOrganizer.StatusFilter filter, String query) {
         if (!query.isEmpty()) return "No bookings match your search and selected status filter.";
-        if (filter == FILTER_UPCOMING) return "No upcoming bookings.";
-        if (filter == FILTER_COMPLETED) return "No completed bookings.";
-        if (filter == FILTER_CANCELLED) return "No cancelled bookings.";
+        if (filter == BookingHistoryOrganizer.StatusFilter.UPCOMING) return "No upcoming bookings.";
+        if (filter == BookingHistoryOrganizer.StatusFilter.COMPLETED) return "No completed bookings.";
+        if (filter == BookingHistoryOrganizer.StatusFilter.CANCELLED) return "No cancelled bookings.";
         return "No bookings match the selected filters.";
     }
 

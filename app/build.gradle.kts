@@ -2,10 +2,23 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
+val debugBackendUrl = providers.gradleProperty("railreserveDebugBackendUrl")
+    .getOrElse("http://10.0.2.2:3000")
+val releaseBackendUrl = providers.gradleProperty("railreserveBackendUrl")
+    .getOrElse("https://railreserve-backend.example.com")
+require(releaseBackendUrl.startsWith("https://", ignoreCase = true)) {
+    "railreserveBackendUrl must use HTTPS for release builds."
+}
+fun buildConfigString(value: String) = "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+
 android {
     namespace = "com.railreserve"
     compileSdk {
         version = release(37)
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     defaultConfig {
@@ -19,7 +32,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "BACKEND_BASE_URL", buildConfigString(debugBackendUrl))
+        }
         release {
+            buildConfigField("String", "BACKEND_BASE_URL", buildConfigString(releaseBackendUrl))
             optimization {
                 enable = false
             }

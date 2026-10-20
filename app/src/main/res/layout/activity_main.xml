@@ -32,7 +32,7 @@
                 android:paddingTop="6dp"
                 android:paddingEnd="10dp"
                 android:paddingBottom="6dp"
-                android:text="RAILRESERVE  /  JOURNEY PLANNER"
+                android:text="RAILRESERVE  /  DEMO BOOKING"
                 android:textColor="@color/white"
                 android:textSize="11sp"
                 android:textStyle="bold"
@@ -225,6 +225,18 @@
             android:text="Find booking by PNR"
             android:textAllCaps="false"
             android:textColor="@color/brand_dark"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+        <Button
+            android:id="@+id/liveSearchButton"
+            android:layout_width="match_parent"
+            android:layout_height="54dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/button_primary"
+            android:minHeight="48dp"
+            android:text="Search live train data"
+            android:textAllCaps="false"
+            android:textColor="@color/white"
             android:textSize="15sp"
             android:textStyle="bold" />
     </LinearLayout>

@@ -20,11 +20,8 @@ import com.railreserve.model.TrainSearchResult;
 import com.railreserve.model.TravelClass;
 import com.railreserve.service.TrainSearchService;
 import com.railreserve.service.TrainSearchServiceFactory;
-import java.time.LocalTime;
-import java.time.format.DateTimeParseException;
-import java.time.temporal.ChronoUnit;
+import com.railreserve.service.TrainResultOrganizer;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -34,11 +31,6 @@ public class TrainResultsActivity extends AppCompatActivity {
     public static final String EXTRA_DESTINATION = "search_destination";
     public static final String EXTRA_DATE = "search_date";
     public static final String EXTRA_CLASS = "search_class";
-
-    private static final int SORT_ORIGINAL = 0;
-    private static final int SORT_DEPARTURE = 1;
-    private static final int SORT_FARE = 2;
-    private static final int SORT_DURATION = 3;
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final List<TrainSearchResult> originalResults = new ArrayList<>();
@@ -132,22 +124,12 @@ public class TrainResultsActivity extends AppCompatActivity {
     }
 
     private void applyControls() {
-        List<TrainSearchResult> visible = new ArrayList<>();
-        for (TrainSearchResult result : originalResults) {
-            if (!availableOnly.isChecked() || result.getAvailableSeats() > 0) {
-                visible.add(result);
-            }
-        }
-
-        int sort = sortSpinner.getSelectedItemPosition();
-        if (sort == SORT_DEPARTURE) {
-            visible.sort(Comparator.comparingLong(TrainResultsActivity::departureMinutes));
-        } else if (sort == SORT_FARE) {
-            visible.sort(Comparator.comparingInt(result ->
-                    result.getFare() < 0 ? Integer.MAX_VALUE : result.getFare()));
-        } else if (sort == SORT_DURATION) {
-            visible.sort(Comparator.comparingLong(TrainResultsActivity::journeyDurationMinutes));
-        }
+        int selectedSort = sortSpinner.getSelectedItemPosition();
+        TrainResultOrganizer.Sort[] sorts = TrainResultOrganizer.Sort.values();
+        TrainResultOrganizer.Sort sort = selectedSort >= 0 && selectedSort < sorts.length
+                ? sorts[selectedSort] : TrainResultOrganizer.Sort.ORIGINAL_ORDER;
+        List<TrainSearchResult> visible = TrainResultOrganizer.organize(
+                originalResults, availableOnly.isChecked(), sort);
 
         adapter.setResults(visible);
         if (originalResults.isEmpty()) {
@@ -156,27 +138,6 @@ public class TrainResultsActivity extends AppCompatActivity {
             showStatus("No trains have available seats for this search. Turn off ‘Available seats only’ to view all trains.");
         } else {
             status.setVisibility(View.GONE);
-        }
-    }
-
-    private static long departureMinutes(TrainSearchResult result) {
-        try {
-            return LocalTime.parse(result.getDeparture()).toSecondOfDay() / 60L;
-        } catch (DateTimeParseException | NullPointerException e) {
-            return Long.MAX_VALUE;
-        }
-    }
-
-    private static long journeyDurationMinutes(TrainSearchResult result) {
-        if (result.getArrivalDayOffset() < 0) return Long.MAX_VALUE;
-        try {
-            LocalTime departure = LocalTime.parse(result.getDeparture());
-            LocalTime arrival = LocalTime.parse(result.getArrival());
-            long duration = ChronoUnit.MINUTES.between(departure, arrival)
-                    + result.getArrivalDayOffset() * 24L * 60L;
-            return duration < 0 ? Long.MAX_VALUE : duration;
-        } catch (DateTimeParseException | NullPointerException e) {
-            return Long.MAX_VALUE;
         }
     }
 
