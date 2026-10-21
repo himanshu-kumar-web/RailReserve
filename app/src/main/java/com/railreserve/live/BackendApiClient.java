@@ -35,6 +35,11 @@ public final class BackendApiClient {
         return get(BackendRequestPaths.schedule(trainNumber));
     }
 
+    public JSONObject fare(String trainNumber, String source, String destination, String journeyDate,
+                           String classCode, String quotaCode) throws BackendException {
+        return get(BackendRequestPaths.fare(trainNumber, source, destination, journeyDate, classCode, quotaCode));
+    }
+
     public JSONObject availability(String trainNumber, String source, String destination,
                                    String journeyDate, String classCode, String quotaCode) throws BackendException {
         return get(BackendRequestPaths.availability(trainNumber, source, destination, journeyDate, classCode, quotaCode));

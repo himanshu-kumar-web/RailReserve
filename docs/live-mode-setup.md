@@ -1,6 +1,6 @@
 # RailReserve live train data setup
 
-Live Train Search is read-only and separate from Demo Booking. It calls the RailReserve backend for station search, route/date train search, and a schedule only after a passenger opens one train. It does not call fare or availability endpoints, use SQLite trains in live mode, or offer live booking.
+Live Train Search is read-only and separate from Demo Booking. It calls the RailReserve backend for station search and route/date train search. Fare estimates and seat availability are requested only when explicitly tapped for a train and selected class. Schedules are fetched when a passenger opens a train. Live mode does not use SQLite trains or offer ticket booking.
 
 ## Configure a backend URL
 
@@ -16,14 +16,29 @@ To use a physical Android device, put the phone and computer on the same trusted
 .\gradlew.bat :app:assembleDebug -PrailreserveDebugBackendUrl=http://192.168.1.20:3000
 ```
 
-Replace `192.168.1.20` with the development computer's current LAN address. For a deployed backend, use HTTPS:
+Replace `192.168.1.20` with the development computer's current LAN address. If Windows Firewall blocks the phone, open PowerShell as Administrator and allow the backend only from the local subnet:
+
+```powershell
+New-NetFirewallRule -DisplayName "RailReserve backend (local subnet)" -Direction Inbound -Action Allow -Program "C:\Program Files\nodejs\node.exe" -Protocol TCP -LocalPort 3000 -RemoteAddress LocalSubnet -Profile Public
+```
+
+For a deployed backend, use HTTPS:
 
 ```powershell
 .\gradlew.bat :app:assembleDebug -PrailreserveDebugBackendUrl=https://your-service.example.com
 .\gradlew.bat :app:assembleRelease -PrailreserveBackendUrl=https://your-service.example.com
 ```
 
-The backend uses RailCore's API at `https://ir.railcore.tech/v1`. Set `RAILCORE_API_KEY` in the backend's private `.env`/host configuration. The key needs `stations:read`, `journeys:read`, and `schedule:read` scopes for the app's live search. Fare and availability endpoints require `fares:read` and `availability:read` if enabled. Station search, route search, and schedules consume RailCore credits; see its current [API documentation](https://railcore.tech/docs). Never put the provider key in Gradle or the Android app.
+If the phone cannot reach the computer over Wi-Fi, connect it over USB and use ADB reverse instead:
+
+```powershell
+adb reverse tcp:3000 tcp:3000
+.\gradlew.bat :app:installDebug -PrailreserveDebugBackendUrl=http://127.0.0.1:3000
+```
+
+Keep the backend running on the computer and recreate the reverse mapping after reconnecting the phone. `127.0.0.1` works here because ADB forwards the phone's local port to the computer; it is not a general phone-to-computer address.
+
+The backend uses RailCore's API at `https://ir.railcore.tech/v1`. Set `RAILCORE_API_KEY` in the backend's private `.env`/host configuration. The key needs `stations:read`, `journeys:read`, and `schedule:read` scopes for the app's live search, plus `fares:read` for fare estimates and `availability:read` for seat availability. Provider requests may use credits; see current costs and scopes in the [RailCore API documentation](https://railcore.tech/docs). Never put the provider key in Gradle or the Android app.
 
 ## Manual live-mode check
 

@@ -83,6 +83,18 @@ public final class LiveDataParser {
         return new LiveAvailability(status, statusType, optionalString(data, "availabilityDate"));
     }
 
+    public static LiveFare parseFare(JSONObject data) throws BackendException {
+        if (data == null || !(data.opt("fareKnown") instanceof Boolean)) {
+            throw malformed("Fare response was incomplete.");
+        }
+        boolean known = data.optBoolean("fareKnown");
+        Double total = optionalDouble(data, "totalFare");
+        if (known && (total == null || total < 0)) {
+            throw malformed("Fare response did not include a valid total.");
+        }
+        return new LiveFare(known, total);
+    }
+
     public static JSONObject successData(String body) throws BackendException {
         try {
             JSONObject envelope = new JSONObject(body);

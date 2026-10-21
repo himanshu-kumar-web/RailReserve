@@ -72,7 +72,7 @@ Returns the ordered route and schedule from RailCore's `GET /v1/trains/{train_nu
 
 ### Fare and seat availability
 
-Compatibility endpoints `/api/trains/:number/fare` and `/api/trains/:number/availability` are available in the backend, but the Android app does not currently use them. They must not be presented as a confirmed fare, reservation, or ticket.
+The Android app can request `/api/trains/:number/fare` and `/api/trains/:number/availability` on demand for a selected train and class. Fare responses are estimates only and are not a confirmed booking price, reservation, or ticket.
 
 ## Optional provider smoke check
 

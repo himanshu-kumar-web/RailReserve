@@ -2,7 +2,7 @@
 
 RailReserve is a native Android Java train-search and reservation-workflow demonstration. It uses XML Android Views and SQLite for local demo data. The app opens to **Live Home**, where station and scheduled timetable searches are sent through the Node.js backend to RailCore. The **Tickets** section displays locally saved demo bookings and links to PNR lookup and cancellation.
 
-Demo bookings are stored only on the device. They are not IRCTC reservations, do not issue real tickets, and do not process payments. Live search returns scheduled timetable information, with optional per-train seat-availability checks; live running status, fare display, and real booking are not enabled. Each availability check uses RailCore credits.
+Demo bookings are stored only on the device. They are not IRCTC reservations, do not issue real tickets, and do not process payments. Live search returns scheduled timetable information, with on-demand per-train fare estimates and seat-availability checks; live running status and real booking are not enabled. Provider requests may use RailCore credits.
 
 ## Features
 
@@ -83,13 +83,32 @@ Keep the backend process running while using live search. Backend setup details 
 
 ### Use a physical phone on Wi-Fi
 
-The emulator URL `10.0.2.2` does **not** work on a physical phone. Connect the phone and development computer to the same reachable Wi-Fi network, find the computer's current Wi-Fi IPv4 address with `ipconfig`, then build with that address:
+The emulator URL `10.0.2.2` does **not** work on a physical phone. Connect the phone and development computer to the same reachable Wi-Fi network, find the computer's current Wi-Fi IPv4 address with `ipconfig`, then build with that address. The current development Wi-Fi address is `172.19.10.228`; use the address shown by `ipconfig` if it changes:
 
 ```powershell
 .\gradlew.bat :app:assembleDebug -PrailreserveDebugBackendUrl=http://192.168.1.20:3000
 ```
 
 Replace `192.168.1.20` with the computer's current Wi-Fi IPv4 address. Install the newly built APK; an already-installed APK retains the backend address it was built with. On the phone, open `http://192.168.1.20:3000/health` in a browser. If it does not load, allow inbound TCP port 3000 through Windows Firewall and check that the Wi-Fi network does not isolate connected devices. The computer's address can change when it reconnects to Wi-Fi, so rebuild with the new address if needed.
+
+This Wi-Fi build does not require an ADB reverse tunnel. If the phone cannot load the backend health URL, open PowerShell as Administrator and allow the backend only from the local subnet:
+
+```powershell
+New-NetFirewallRule -DisplayName "RailReserve backend (local subnet)" -Direction Inbound -Action Allow -Program "C:\Program Files\nodejs\node.exe" -Protocol TCP -LocalPort 3000 -RemoteAddress LocalSubnet -Profile Public
+```
+
+Also check that the Wi-Fi network permits device-to-device traffic. The phone and computer must stay on the same Wi-Fi network, and the backend must remain running.
+
+### Use a physical phone over USB
+
+When Wi-Fi routing is unavailable, connect the phone with USB debugging enabled and create an ADB reverse tunnel. Build the app with the tunnel's phone-side address, then install it:
+
+```powershell
+adb reverse tcp:3000 tcp:3000
+.\gradlew.bat :app:installDebug -PrailreserveDebugBackendUrl=http://127.0.0.1:3000
+```
+
+Keep the backend running on the computer. The reverse mapping is removed when the USB debugging connection ends, so recreate it after reconnecting the phone. The emulator default `10.0.2.2` and a USB build using `127.0.0.1` are not interchangeable.
 
 Debug builds permit cleartext HTTP for local development. This permission is disabled for release builds.
 

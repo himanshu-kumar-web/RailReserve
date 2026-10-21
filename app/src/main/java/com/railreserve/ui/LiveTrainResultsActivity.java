@@ -19,8 +19,11 @@ import com.railreserve.adapter.LiveTrainAdapter;
 import com.railreserve.live.BackendException;
 import com.railreserve.live.LiveDataRepository;
 import com.railreserve.live.LiveAvailability;
+import com.railreserve.live.LiveFare;
 import com.railreserve.live.LiveTrain;
 import java.util.List;
+import java.text.NumberFormat;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -64,7 +67,7 @@ public final class LiveTrainResultsActivity extends AppCompatActivity {
         classAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         availabilityClass.setAdapter(classAdapter);
         availabilityClass.setSelection(2);
-        adapter = new LiveTrainAdapter(this, this::openSchedule, this::checkAvailability);
+        adapter = new LiveTrainAdapter(this, this::openSchedule, this::checkAvailability, this::checkFare);
         availabilityClass.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 adapter.setSelectedClass(AVAILABILITY_CLASSES[position]);
@@ -140,6 +143,30 @@ public final class LiveTrainResultsActivity extends AppCompatActivity {
                     adapter.setAvailabilityResult(train.getNumber(), classCode,
                             classCode + " · " + (exception.getMessage() == null
                                     ? "Could not load availability." : exception.getMessage()));
+                });
+            }
+        });
+    }
+
+    private void checkFare(LiveTrain train, String classCode) {
+        if (train == null || destroyed) return;
+        adapter.setFareLoading(train.getNumber(), classCode, true);
+        executor.execute(() -> {
+            try {
+                LiveFare fare = repository.getFare(train.getNumber(), sourceCode, destinationCode,
+                        journeyDate, classCode, "GN");
+                String result = fare.isKnown()
+                        ? classCode + " · Estimated fare: " + NumberFormat
+                                .getCurrencyInstance(new Locale("en", "IN")).format(fare.getTotal())
+                        : classCode + " · Fare not returned for this class.";
+                runOnUiThread(() -> {
+                    if (!destroyed) adapter.setFareResult(train.getNumber(), classCode, result);
+                });
+            } catch (BackendException exception) {
+                runOnUiThread(() -> {
+                    if (!destroyed) adapter.setFareResult(train.getNumber(), classCode,
+                            classCode + " · " + (exception.getMessage() == null
+                                    ? "Could not load fare." : exception.getMessage()));
                 });
             }
         });
