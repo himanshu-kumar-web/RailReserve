@@ -1,12 +1,13 @@
 # RailReserve
 
-RailReserve is a native Android Java train-search and reservation-workflow demonstration. It uses XML Android Views and SQLite for local demo data. The app opens to **Live Home**, where station and scheduled timetable searches are sent through the Node.js backend to RailRadar. The **Tickets** section displays locally saved demo bookings and links to PNR lookup and cancellation.
+RailReserve is a native Android Java train-search and reservation-workflow demonstration. It uses XML Android Views and SQLite for local demo data. The app opens to **Live Home**, where station and scheduled timetable searches are sent through the Node.js backend to RailCore. The **Tickets** section displays locally saved demo bookings and links to PNR lookup and cancellation.
 
-Demo bookings are stored only on the device. They are not IRCTC reservations, do not issue real tickets, and do not process payments. Live search returns scheduled timetable information only; live running status, fares, live seat availability, and real booking are not enabled.
+Demo bookings are stored only on the device. They are not IRCTC reservations, do not issue real tickets, and do not process payments. Live search returns scheduled timetable information, with optional per-train seat-availability checks; live running status, fare display, and real booking are not enabled. Each availability check uses RailCore credits.
 
 ## Features
 
 - Live station suggestions, route/date train search, and scheduled train details.
+- On-demand seat availability by train and class with General quota.
 - Local demo train search, reservations, PNR lookup, and cancellation.
 - A Tickets section that displays saved demo tickets and refreshes when you return to it.
 - Java, XML layouts, and SQLite persistence.
@@ -16,7 +17,7 @@ Demo bookings are stored only on the device. They are not IRCTC reservations, do
 - Android Studio with Android SDK Platform 37 installed (or allow Android Studio to install it).
 - JDK 17 or newer. Android Studio's bundled JDK is suitable.
 - Node.js 24.5 or newer and npm, if you want live station/train search.
-- A RailRadar API key for the backend. Keep it private; it does not belong in the Android app or source control.
+- A RailCore API key for the backend. Keep it private; it does not belong in the Android app or source control.
 
 The Gradle Wrapper uses Gradle 9.5.0 and downloads it automatically on the first build.
 
@@ -59,7 +60,7 @@ Set-Location .\backend
 Copy-Item .env.example .env
 ```
 
-Open `backend\.env` in a text editor, set `RAILRADAR_API_KEY` to your private provider key, and save it. Do not paste the key into Gradle, the Android app, or a committed file. Install backend dependencies and start the server:
+Open `backend\.env` in a text editor, set `RAILCORE_API_KEY` to your private RailCore key, and save it. The app's live search requires the `stations:read`, `journeys:read`, and `schedule:read` key scopes. Do not paste the key into Gradle, the Android app, or a committed file. Install backend dependencies and start the server:
 
 ```powershell
 npm install
@@ -100,7 +101,7 @@ Release builds require an HTTPS backend URL. Replace the example URL with your d
 .\gradlew.bat :app:assembleRelease -PrailreserveBackendUrl=https://your-backend.example.com
 ```
 
-The release APK output is under `app\build\outputs\apk\release\`. Configure release signing before distributing the APK. Never embed the RailRadar API key in the release APK; keep it in the backend's private environment.
+The release APK output is under `app\build\outputs\apk\release\`. Configure release signing before distributing the APK. Never embed the RailCore API key in the release APK; keep it in the backend's private environment.
 
 ## Tests
 
@@ -125,7 +126,8 @@ Backend unit tests use mocked provider responses. The optional provider smoke ch
 - **Station suggestions do not appear:** Confirm the backend is running, check `/health` from the phone or emulator, and confirm the app was built with the correct backend URL.
 - **Phone cannot open the health URL:** Check the laptop's current Wi-Fi IPv4 address, Windows Firewall inbound access to TCP 3000, and Wi-Fi client isolation.
 - **No station suggestion is selected:** Type at least two characters and select one of the returned station suggestions before searching trains.
-- **Backend will not start:** Confirm Node.js is 24.5 or newer and that `backend\.env` contains a valid `RAILRADAR_API_KEY`.
+- **Seat availability is missing:** Open live train results, choose a class, and tap **Check seat availability** on a train. Each check can consume 5 RailCore credits and requires the key's `availability:read` scope.
+- **Backend will not start:** Confirm Node.js is 24.5 or newer and that `backend\.env` contains a valid `RAILCORE_API_KEY`.
 - **Gradle cannot find Android SDK:** Open the project in Android Studio, install Android SDK Platform 37 from SDK Manager, then sync and retry.
 
 ## Project documentation

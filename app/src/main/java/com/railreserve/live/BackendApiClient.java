@@ -14,7 +14,7 @@ import java.nio.charset.StandardCharsets;
 
 public final class BackendApiClient {
     private static final int CONNECT_TIMEOUT_MS = 8000;
-    private static final int READ_TIMEOUT_MS = 8000;
+    private static final int READ_TIMEOUT_MS = 25000;
     private final String baseUrl;
 
     public BackendApiClient() {
@@ -33,6 +33,11 @@ public final class BackendApiClient {
 
     public JSONObject schedule(String trainNumber) throws BackendException {
         return get(BackendRequestPaths.schedule(trainNumber));
+    }
+
+    public JSONObject availability(String trainNumber, String source, String destination,
+                                   String journeyDate, String classCode, String quotaCode) throws BackendException {
+        return get(BackendRequestPaths.availability(trainNumber, source, destination, journeyDate, classCode, quotaCode));
     }
 
     public String getBaseUrl() { return baseUrl; }

@@ -85,12 +85,24 @@
         android:textSize="12sp" />
 
     <TextView
+        android:id="@+id/liveTrainAvailability"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
-        android:text="@string/availability_unavailable"
         android:textColor="@color/muted"
         android:textSize="12sp" />
+
+    <Button
+        android:id="@+id/liveTrainAvailabilityButton"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="6dp"
+        android:background="@drawable/button_secondary"
+        android:minHeight="48dp"
+        android:text="Check seat availability"
+        android:textAllCaps="false"
+        android:textColor="@color/brand_dark"
+        android:textStyle="bold" />
 
     <Button
         android:id="@+id/liveTrainScheduleButton"

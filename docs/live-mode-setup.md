@@ -23,15 +23,15 @@ Replace `192.168.1.20` with the development computer's current LAN address. For 
 .\gradlew.bat :app:assembleRelease -PrailreserveBackendUrl=https://your-service.example.com
 ```
 
-The backend uses the RailRadar API. Set `RAILRADAR_API_KEY` and `RAILRADAR_BASE_URL=https://api.railradar.in/v1` in the backend's private `.env`/host configuration. Never put the provider key in Gradle or the Android app.
+The backend uses RailCore's API at `https://ir.railcore.tech/v1`. Set `RAILCORE_API_KEY` in the backend's private `.env`/host configuration. The key needs `stations:read`, `journeys:read`, and `schedule:read` scopes for the app's live search. Fare and availability endpoints require `fares:read` and `availability:read` if enabled. Station search, route search, and schedules consume RailCore credits; see its current [API documentation](https://railcore.tech/docs). Never put the provider key in Gradle or the Android app.
 
 ## Manual live-mode check
 
-1. Configure the backend's private `RAILRADAR_API_KEY` and start it from `backend/` with `npm start`.
+1. Configure the backend's private `RAILCORE_API_KEY` and start it from `backend/` with `npm start`.
 2. Build/install the debug app with the emulator URL, a reachable computer LAN URL, or the deployed HTTPS URL above.
 3. The app opens on Live Home. Search a station name/code, wait for suggestions, and select the displayed name/code for both route ends.
 4. Choose a journey date and press **Search live trains**. Confirm the screen identifies live scheduled data and shows only returned fields, including day offsets when supplied.
-5. Open a train and confirm its ordered scheduled stops, null endpoint times, and day offsets. Fare and live seat availability are not enabled in this app.
+5. Open a train and confirm its ordered scheduled stops, null endpoint times, and day offsets. On the results screen, select a class and explicitly check seat availability; each request uses General quota and may consume 5 RailCore credits.
 6. Stop the backend or disconnect the device. Confirm live search/schedule shows an error and never substitutes demo trains.
 7. Return to the home screen's **Demo Booking** search. Exercise a demo booking, confirmation, PNR lookup, cancellation, and My Bookings to verify the local workflow remains available.
 
