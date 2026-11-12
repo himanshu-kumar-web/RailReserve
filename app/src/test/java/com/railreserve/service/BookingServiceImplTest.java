@@ -13,6 +13,28 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
 public class BookingServiceImplTest {
+    @Test public void checkoutReferenceAndPaiseSurviveServiceValidation() {
+        RecordingBookingDao dao = new RecordingBookingDao();
+        BookingService service = new BookingServiceImpl(dao);
+        String reference = "DEMO-CHK-12345678-1234-1234-1234-123456789abc";
+        service.createBooking(new BookingRequest(1, 2, TravelClass.SLEEPER, " Passenger ", 25, "Other", reference, 10000L));
+        assertEquals(reference, dao.lastRequest.getCheckoutReference());
+        assertEquals(Long.valueOf(10000), dao.lastRequest.getExpectedAmountPaise());
+        assertEquals("Passenger", dao.lastRequest.getPassengerName());
+    }
+
+    @Test public void malformedCheckoutAndInvalidAmountsNeverReachDao() {
+        RecordingBookingDao dao = new RecordingBookingDao();
+        BookingService service = new BookingServiceImpl(dao);
+        String reference = "DEMO-CHK-12345678-1234-1234-1234-123456789abc";
+        org.junit.Assert.assertThrows(IllegalArgumentException.class, () -> service.createBooking(
+                new BookingRequest(1, 1, TravelClass.SLEEPER, "Passenger", 25, "Other", "invalid", 10000L)));
+        org.junit.Assert.assertThrows(IllegalArgumentException.class, () -> service.createBooking(
+                new BookingRequest(1, 1, TravelClass.SLEEPER, "Passenger", 25, "Other", reference, -1L)));
+        org.junit.Assert.assertThrows(IllegalArgumentException.class, () -> service.createBooking(
+                new BookingRequest(1, 1, TravelClass.SLEEPER, "Passenger", 25, "Other", null, 10000L)));
+        assertEquals(0, dao.createCount);
+    }
     @Test public void pnrIsTrimmedAndAWellFormedMissingPnrRemainsNotFound() {
         RecordingBookingDao dao = new RecordingBookingDao();
         BookingService service = new BookingServiceImpl(dao);
@@ -54,14 +76,17 @@ public class BookingServiceImplTest {
     }
 
     private static final class RecordingBookingDao implements BookingDao {
+        @Override public Booking findBookingByCheckoutReference(String reference) { return null; }
         String lastPnr;
         int lookupCount;
         int createCount;
+        BookingRequest lastRequest;
 
         @Override public List<Seat> getAvailableSeats(long journeyId, String travelClass) {
             return Collections.emptyList();
         }
         @Override public Booking createBooking(BookingRequest request) {
+            lastRequest = request;
             createCount++;
             return null;
         }

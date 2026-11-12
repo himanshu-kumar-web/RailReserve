@@ -6,7 +6,9 @@ import { RailCoreClient } from './provider/railCoreClient.js';
 import { createApiRouter } from './routes/api.js';
 
 export function createApp({ client = new RailCoreClient(), rateLimitMax = Number(process.env.RATE_LIMIT_MAX || 60),
-  rateLimitWindowMs = Number(process.env.RATE_LIMIT_WINDOW_MS || 900000) } = {}) {
+  rateLimitWindowMs = Number(process.env.RATE_LIMIT_WINDOW_MS || 900000),
+  capabilities = { fare: process.env.RAILRESERVE_LIVE_FARE_ENABLED === 'true',
+    availability: process.env.RAILRESERVE_LIVE_AVAILABILITY_ENABLED === 'true' } } = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
@@ -24,7 +26,7 @@ export function createApp({ client = new RailCoreClient(), rateLimitMax = Number
     legacyHeaders: false,
     handler: (req, res) => sendError(res, req, new ApiError(429, 'RATE_LIMITED', 'Too many requests. Please try again later.')),
   }));
-  app.use('/api', createApiRouter(client));
+  app.use('/api', createApiRouter(client, capabilities));
   app.use((req, res) => sendError(res, req, new ApiError(404, 'NOT_FOUND', 'The requested endpoint was not found.')));
   app.use((error, req, res, _next) => {
     if (res.headersSent) return;

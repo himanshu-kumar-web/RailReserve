@@ -38,6 +38,7 @@ public class TrainResultsActivity extends AppCompatActivity {
     private boolean destroyed;
     private boolean firstResume = true;
     private boolean resultsLoaded;
+    private boolean openingBooking;
     private TrainResultAdapter adapter;
     private ProgressBar progress;
     private TextView status;
@@ -147,9 +148,11 @@ public class TrainResultsActivity extends AppCompatActivity {
     }
 
     private void openBooking(int position) {
+        if (openingBooking) return;
         if (position < 0 || position >= adapter.getCount()) return;
         TrainSearchResult row = (TrainSearchResult) adapter.getItem(position);
         if (row.getAvailableSeats() <= 0) return;
+        openingBooking = true;
         Intent intent = new Intent(this, BookingActivity.class);
         intent.putExtra(BookingActivity.EXTRA_JOURNEY_ID, row.getJourneyId());
         intent.putExtra(BookingActivity.EXTRA_TRAIN_ID, row.getTrainId());
@@ -167,6 +170,7 @@ public class TrainResultsActivity extends AppCompatActivity {
 
     @Override protected void onResume() {
         super.onResume();
+        openingBooking = false;
         if (firstResume) {
             firstResume = false;
             return;

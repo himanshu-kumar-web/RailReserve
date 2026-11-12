@@ -253,6 +253,11 @@
                 android:textColor="@color/brand_dark"
                 android:textSize="20sp"
                 android:textStyle="bold" />
+            <TextView android:id="@+id/lookupPayment"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="12dp" android:lineSpacingExtra="4dp"
+                android:textColor="@color/brand_dark" android:textSize="13sp"
+                android:textIsSelectable="true" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

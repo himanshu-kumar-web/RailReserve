@@ -77,56 +77,9 @@
         android:textColor="@color/brand_dark"
         android:textSize="12sp" />
 
-    <TextView
-        android:id="@+id/liveTrainFare"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:textColor="@color/brand_dark"
-        android:textSize="14sp"
-        android:textStyle="bold" />
-
-    <Button
-        android:id="@+id/liveTrainFareButton"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:layout_marginTop="4dp"
-        android:background="@drawable/button_secondary"
-        android:minHeight="48dp"
-        android:text="Check fare estimate"
-        android:textAllCaps="false"
-        android:textColor="@color/brand_dark"
-        android:textStyle="bold" />
-
-    <TextView
-        android:id="@+id/liveTrainAvailability"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:textColor="@color/muted"
-        android:textSize="12sp" />
-
-    <Button
-        android:id="@+id/liveTrainAvailabilityButton"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:layout_marginTop="6dp"
-        android:background="@drawable/button_secondary"
-        android:minHeight="48dp"
-        android:text="Check seat availability"
-        android:textAllCaps="false"
-        android:textColor="@color/brand_dark"
-        android:textStyle="bold" />
-
-    <Button
-        android:id="@+id/liveTrainScheduleButton"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:layout_marginTop="10dp"
-        android:background="@drawable/button_secondary"
-        android:minHeight="48dp"
-        android:text="View scheduled stops"
-        android:textAllCaps="false"
-        android:textColor="@color/brand_dark"
-        android:textStyle="bold" />
+    <Button android:id="@+id/liveTrainDetailsButton"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:minHeight="52dp" android:layout_marginTop="12dp"
+        android:background="@drawable/button_primary" android:text="@string/view_train_details"
+        android:textAllCaps="false" android:textColor="@color/white" android:textSize="16sp" android:textStyle="bold" />
 </LinearLayout>

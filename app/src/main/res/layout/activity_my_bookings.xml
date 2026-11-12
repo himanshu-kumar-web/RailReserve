@@ -157,6 +157,17 @@
         android:textStyle="bold"
         android:visibility="gone" />
 
+    <Button
+        android:id="@+id/bookingsRetry"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/button_secondary"
+        android:text="@string/retry"
+        android:textAllCaps="false"
+        android:textColor="@color/brand_dark"
+        android:visibility="gone" />
+
     <ListView
         android:id="@+id/bookingsList"
         android:layout_width="match_parent"

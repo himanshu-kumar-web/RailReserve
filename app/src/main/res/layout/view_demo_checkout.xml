@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/demoCheckoutPanel"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:visibility="gone">
+
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="REVIEW &amp; DEMO UPI" android:textColor="@color/brand_dark"
+        android:textSize="12sp" android:textStyle="bold" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="8dp" android:text="Review your reservation"
+        android:textColor="@color/navy" android:textSize="26sp" android:textStyle="bold" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="16dp" android:background="@color/teal_soft" android:padding="14dp"
+        android:text="Demo Payment — No real money will be deducted."
+        android:textColor="@color/brand_dark" android:textSize="16sp" android:textStyle="bold" />
+    <TextView android:id="@+id/checkoutSummary" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="16dp" android:background="@drawable/card_background" android:padding="16dp"
+        android:lineSpacingExtra="5dp" android:textColor="@color/ink" android:textSize="15sp" />
+    <TextView android:id="@+id/checkoutTotal" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="16dp" android:textColor="@color/brand_dark" android:textSize="23sp" android:textStyle="bold" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="8dp" android:text="Payment method: Demo UPI\nNo UPI ID, PIN or banking details are needed. No payment app will open."
+        android:textColor="@color/muted" android:textSize="14sp" />
+    <ProgressBar android:id="@+id/demoPaymentProgress" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal" android:layout_marginTop="18dp" android:visibility="gone" />
+    <TextView android:id="@+id/demoPaymentStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="12dp" android:accessibilityLiveRegion="polite" android:lineSpacingExtra="3dp"
+        android:textColor="@color/ink" android:textSize="15sp" />
+    <Button android:id="@+id/demoPayButton" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:minHeight="56dp" android:layout_marginTop="16dp" android:background="@drawable/button_primary"
+        android:text="Pay (Demo)" android:textAllCaps="false" android:textColor="@color/white" android:textSize="16sp" />
+    <Button android:id="@+id/editCheckoutButton" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:minHeight="50dp" android:layout_marginTop="10dp" android:background="@drawable/button_secondary"
+        android:text="Edit passenger or seat" android:textAllCaps="false" android:textColor="@color/brand_dark" />
+    <Button android:id="@+id/cancelDemoPaymentButton" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:minHeight="50dp" android:layout_marginTop="10dp" android:background="@drawable/button_cancel"
+        android:text="Cancel demo payment" android:textAllCaps="false" android:textColor="#9A3328" android:visibility="gone" />
+    <Button android:id="@+id/demoPaymentTestToggle" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:minHeight="48dp" android:layout_marginTop="12dp" android:text="Demo test controls"
+        android:textAllCaps="false" android:textColor="@color/muted" style="?android:attr/borderlessButtonStyle" />
+    <Spinner android:id="@+id/demoPaymentScenario" android:layout_width="match_parent" android:layout_height="50dp"
+        android:background="@drawable/booking_input_background" android:visibility="gone" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp"
+        android:text="Your seat is rechecked when the reservation is finalized. This simulation does not reserve a real railway seat."
+        android:textColor="@color/muted" android:textSize="12sp" />
+</LinearLayout>

@@ -3,9 +3,9 @@ plugins {
 }
 
 val debugBackendUrl = providers.gradleProperty("railreserveDebugBackendUrl")
-    .getOrElse("http://10.0.2.2:3000")
+    .getOrElse("https://railreserve-x8fq.onrender.com")
 val releaseBackendUrl = providers.gradleProperty("railreserveBackendUrl")
-    .getOrElse("https://railreserve-backend.example.com")
+    .getOrElse("https://railreserve-x8fq.onrender.com")
 require(releaseBackendUrl.startsWith("https://", ignoreCase = true)) {
     "railreserveBackendUrl must use HTTPS for release builds."
 }
@@ -29,6 +29,11 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Enable only after access has been verified on a supported provider plan.
+        buildConfigField("boolean", "LIVE_FARE_ENABLED",
+            providers.gradleProperty("railreserveLiveFareEnabled").getOrElse("false").toBoolean().toString())
+        buildConfigField("boolean", "LIVE_AVAILABILITY_ENABLED",
+            providers.gradleProperty("railreserveLiveAvailabilityEnabled").getOrElse("false").toBoolean().toString())
     }
 
     buildTypes {
@@ -56,6 +61,8 @@ dependencies {
     implementation(libs.constraintlayout)
     implementation(libs.material)
     testImplementation(libs.junit)
+    // Execute JSON contract tests on the JVM without requiring a connected phone.
+    testImplementation("org.json:json:20250517")
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.ext.junit)
 }

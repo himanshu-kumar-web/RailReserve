@@ -45,7 +45,7 @@ public final class LiveSearchActivity extends AppCompatActivity {
     private StationInput sourceInput, destinationInput;
     private Button dateButton, searchButton;
     private LocalDate selectedDate = LocalDate.now();
-    private boolean destroyed;
+    private volatile boolean destroyed;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -114,6 +114,7 @@ public final class LiveSearchActivity extends AppCompatActivity {
     }
 
     private void search() {
+        if (!searchButton.isEnabled()) return;
         LiveStation from = sourceInput.selected;
         LiveStation to = destinationInput.selected;
         if (from == null || !from.toString().contentEquals(sourceInput.view.getText())) {
@@ -131,6 +132,14 @@ public final class LiveSearchActivity extends AppCompatActivity {
             destinationInput.view.requestFocus();
             return;
         }
+        if (selectedDate.isBefore(LocalDate.now()) || selectedDate.isAfter(LocalDate.now().plusDays(14))) {
+            selectedDate = LocalDate.now();
+            updateDateLabel();
+            showDatePicker();
+            return;
+        }
+        KeyboardHelper.dismiss(this);
+        searchButton.setEnabled(false);
         Intent intent = new Intent(this, LiveTrainResultsActivity.class);
         intent.putExtra(EXTRA_SOURCE_CODE, from.getCode());
         intent.putExtra(EXTRA_SOURCE_NAME, from.getName());
@@ -147,11 +156,8 @@ public final class LiveSearchActivity extends AppCompatActivity {
                 setStatus(input, "That station suggestion is no longer available. Search again.", false);
                 return;
             }
-            input.generation++;
-            if (input.pending != null) handler.removeCallbacks(input.pending);
             input.setSelected(station);
             input.view.dismissDropDown();
-            input.status.setText("Selected station code: " + station.getCode());
         });
     }
 
@@ -171,6 +177,12 @@ public final class LiveSearchActivity extends AppCompatActivity {
         super.onSaveInstanceState(out);
     }
 
+    @Override protected void onResume() {
+        super.onResume();
+        AppNavigation.onResume(this);
+        searchButton.setEnabled(true);
+    }
+
     @Override protected void onDestroy() {
         destroyed = true;
         handler.removeCallbacksAndMessages(null);
@@ -184,7 +196,7 @@ public final class LiveSearchActivity extends AppCompatActivity {
         final StationAdapter adapter;
         LiveStation selected;
         Runnable pending;
-        int generation;
+        volatile int generation;
 
         StationInput(AutoCompleteTextView view, TextView status) {
             this.view = view;
@@ -202,9 +214,17 @@ public final class LiveSearchActivity extends AppCompatActivity {
         }
 
         void setSelected(LiveStation station) {
+            generation++;
+            if (pending != null) handler.removeCallbacks(pending);
             selected = station;
-            if (station != null) view.setText(station.toString(), false);
-            else adapter.clearStations();
+            view.setError(null);
+            if (station != null) {
+                view.setText(station.toString(), false);
+                setStatus(this, "Selected station code: " + station.getCode(), false);
+            } else {
+                adapter.clearStations();
+                setStatus(this, "Type at least 2 characters to search stations.", false);
+            }
         }
     }
 
@@ -306,6 +326,7 @@ public final class LiveSearchActivity extends AppCompatActivity {
     }
 
     private void onQueryChanged(StationInput input, String text) {
+        input.view.setError(null);
         if (input.selected != null && input.selected.toString().contentEquals(text)) return;
         LiveStation exactMatch = input.adapter.findByLabel(text);
         if (exactMatch != null) {
@@ -320,11 +341,13 @@ public final class LiveSearchActivity extends AppCompatActivity {
         int requestGeneration = input.generation;
         if (input.pending != null) handler.removeCallbacks(input.pending);
         input.adapter.clearStations();
+        input.view.dismissDropDown();
         String query = text.trim();
         if (query.length() < 2) {
             setStatus(input, "Type at least 2 characters to search stations.", false);
             return;
         }
+        setStatus(input, "Searching live station suggestions...", false);
         input.pending = () -> {
             if (destroyed || input.generation != requestGeneration) return;
             requestStations(input, query, requestGeneration);
@@ -343,6 +366,8 @@ public final class LiveSearchActivity extends AppCompatActivity {
         setStatus(input, "Searching live station suggestions...", false);
         try {
             executor.execute(() -> {
+                // A slow request may leave older edits queued. Do not send those to the provider.
+                if (destroyed || input.generation != requestGeneration) return;
                 java.util.List<LiveStation> stations = null;
                 String error = null;
                 try {
@@ -353,7 +378,7 @@ public final class LiveSearchActivity extends AppCompatActivity {
                             : exception.getMessage();
                 } catch (Exception exception) {
                     // Keep unexpected request failures visible and recoverable without logging response data.
-                    error = "Could not load station suggestions. Tap here to retry.";
+                    error = "Could not load station suggestions.";
                 }
                 final java.util.List<LiveStation> result = stations;
                 final String failure = error;
@@ -363,8 +388,8 @@ public final class LiveSearchActivity extends AppCompatActivity {
                     if (failure == null) {
                         input.adapter.setStations(result);
                         setStatus(input, result.isEmpty()
-                                ? "No station matches. Check the name or code."
-                                : "Select a station name and code from the suggestions.", false);
+                                ? "No station matches. Check the name or code, or tap here to retry."
+                                : "Select a station name and code from the suggestions.", result.isEmpty());
                         if (!result.isEmpty() && input.view.hasFocus()) input.view.showDropDown();
                     } else {
                         setStatus(input, failure + " Tap here to retry.", true);

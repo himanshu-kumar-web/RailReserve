@@ -19,6 +19,58 @@ async function withServer(app, run) {
 
 function fakeClient(get = async () => ({})) { return { get }; }
 
+test('optional capabilities are disabled by default without contacting the provider', async () => {
+  let calls = 0;
+  await withServer(createApp({ client: fakeClient(async () => { calls++; }), capabilities: {} }), async (base) => {
+    for (const endpoint of ['fare', 'availability']) {
+      const response = await fetch(`${base}/api/trains/12345/${endpoint}?source=AAA&destination=BBB&journeyDate=2026-11-13&classCode=3A`);
+      assert.equal(response.status, 503);
+      assert.equal((await response.json()).error.code, 'CAPABILITY_UNAVAILABLE');
+    }
+  });
+  assert.equal(calls, 0);
+});
+
+test('offered classes come exclusively from provider lists and survive route and schedule normalization', () => {
+  const train = { train_number: '12345', train_name: 'Fixture', departure_time: '08:00', arrival_time: '12:00', duration_minutes: 240 };
+  const between = (entry) => normalizeBetween({ from_station_code: 'AAA', to_station_code: 'BBB', trains: [entry] }).trains[0];
+  assert.equal(between(train).classes, null);
+  assert.deepEqual(between({ ...train, classes: ['SL', '3A', '2A', 'CC', 'SL', null, 2, 'invalid'] }).classes, ['SL', '3A', '2A', 'CC']);
+  const schedule = normalizeSchedule({ train_number: '12345', train_name: 'Fixture', stops: [], classes: ['CC', 'EC'] });
+  assert.deepEqual(schedule.train.classes, ['CC', 'EC']);
+  assert.equal(schedule.train.classSource, 'RailCore schedule');
+  assert.deepEqual(between({ ...train, classes: [] }).classes, []);
+});
+
+test('fare fixtures preserve provenance and reject negative, non-INR and missing prices', () => {
+  const requested = { number: '12345', source: 'AAA', destination: 'BBB', classCode: '3A', quotaCode: 'GN' };
+  for (const fare of [{ fare: -1, currency: 'INR' }, { fare: 10, currency: 'USD' }, { fare: 10 }, {}]) {
+    assert.equal(normalizeFare({ fares: [{ class_code: '3A', ...fare }] }, requested).fareKnown, false);
+  }
+  const result = normalizeFare({ fares: [{ class_code: '3A', fare: 875.50, currency: 'INR' }] }, requested);
+  assert.equal(result.totalFare, 875.50);
+  assert.equal(result.providerSource, 'RailCore fare estimate');
+  assert.ok(Number.isFinite(Date.parse(result.retrievedAt)));
+  assert.throws(() => normalizeFare({ train_number: '99999' }, requested), (error) => error.code === 'INVALID_PROVIDER_RESPONSE');
+  assert.throws(() => normalizeAvailability({ from_station_code: 'WRONG' }, requested), (error) => error.code === 'INVALID_PROVIDER_RESPONSE');
+});
+
+test('enabled availability rejects another date and never permits intermediary caching', async () => {
+  let date = '2026-11-14';
+  const app = createApp({ client: fakeClient(async () => ({ journey_date: date, classes: [{ class_code: '3A', status: 'RAC', last_updated_at: '2026-11-12T10:00:00Z' }] })),
+    capabilities: { availability: true } });
+  await withServer(app, async (base) => {
+    const url = `${base}/api/trains/12345/availability?source=AAA&destination=BBB&journeyDate=2026-11-13&classCode=3A`;
+    assert.equal((await fetch(url)).status, 502);
+    date = '2026-11-13';
+    const response = await fetch(url);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    const result = (await response.json()).data;
+    assert.equal(result.inventoryUpdatedAt, '2026-11-12T10:00:00Z');
+    assert.equal(result.providerSource, 'RailCore availability');
+  });
+});
+
 test('health returns a safe process status without provider configuration', async () => {
   await withServer(createApp({ client: fakeClient(), rateLimitMax: 100 }), async (base) => {
     const response = await fetch(`${base}/health`);
@@ -85,7 +137,7 @@ test('route search sends RailCore query parameters and normalizes its response',
   });
 });
 
-test('schedule, fare, and availability routes use RailCore endpoint contracts', async () => {
+test('authorized schedule, fare, and availability routes use RailCore endpoint contracts', async () => {
   const observed = [];
   const app = createApp({ client: fakeClient(async (path, query) => {
     observed.push({ path, query });
@@ -101,7 +153,7 @@ test('schedule, fare, and availability routes use RailCore endpoint contracts', 
     return { train_number: '12345', from_station_code: 'NDLS', to_station_code: 'HWH',
       journey_date: '2026-10-25', quota: 'GN',
       classes: [{ class_code: '3A', status: 'AVAILABLE', availability_text: 'AVAILABLE 4' }] };
-  }), rateLimitMax: 100 });
+  }), capabilities: { fare: true, availability: true }, rateLimitMax: 100 });
 
   await withServer(app, async (base) => {
     const schedule = await fetch(`${base}/api/trains/12345/schedule`);

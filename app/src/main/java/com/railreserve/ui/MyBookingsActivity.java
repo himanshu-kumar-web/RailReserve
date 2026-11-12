@@ -1,6 +1,7 @@
 package com.railreserve.ui;
 
 import android.os.Bundle;
+import android.content.Intent;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
@@ -38,6 +39,7 @@ public class MyBookingsActivity extends AppCompatActivity implements BookingAdap
     private ProgressBar progress;
     private TextView status;
     private Button emptySearchButton;
+    private Button retryButton;
     private EditText searchInput;
     private Spinner statusSpinner;
     private Spinner sortSpinner;
@@ -61,12 +63,20 @@ public class MyBookingsActivity extends AppCompatActivity implements BookingAdap
         progress = findViewById(R.id.bookingsProgress);
         status = findViewById(R.id.bookingsStatus);
         emptySearchButton = findViewById(R.id.emptySearchButton);
+        retryButton = findViewById(R.id.bookingsRetry);
+        retryButton.setOnClickListener(view -> loadBookings());
         searchInput = findViewById(R.id.bookingSearchInput);
         statusSpinner = findViewById(R.id.bookingStatusSpinner);
         sortSpinner = findViewById(R.id.bookingSortSpinner);
         adapter = new BookingAdapter(this, this);
         list.setAdapter(adapter);
-        emptySearchButton.setOnClickListener(view -> finish());
+        emptySearchButton.setOnClickListener(view -> {
+            Intent intent = new Intent(this, AppSectionActivity.class);
+            intent.putExtra(AppSectionActivity.EXTRA_SECTION, AppSectionActivity.SECTION_TICKETS);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            startActivity(intent);
+            finish();
+        });
         configureFilters();
     }
 
@@ -106,6 +116,8 @@ public class MyBookingsActivity extends AppCompatActivity implements BookingAdap
     }
 
     private void loadBookings() {
+        bookingsLoaded = false;
+        retryButton.setVisibility(View.GONE);
         progress.setVisibility(View.VISIBLE);
         status.setVisibility(View.GONE);
         emptySearchButton.setVisibility(View.GONE);
@@ -124,10 +136,10 @@ public class MyBookingsActivity extends AppCompatActivity implements BookingAdap
                 runOnUiThread(() -> {
                     if (destroyed) return;
                     progress.setVisibility(View.GONE);
+                    adapter.setBookings(new ArrayList<>());
+                    retryButton.setVisibility(View.VISIBLE);
                     emptySearchButton.setVisibility(View.GONE);
-                    showStatus(exception.getMessage() == null
-                            ? "Could not load your bookings. Please try again."
-                            : exception.getMessage());
+                    showStatus("Could not load your bookings. Please retry.");
                 });
             }
         });
@@ -207,7 +219,9 @@ public class MyBookingsActivity extends AppCompatActivity implements BookingAdap
                     cancellationInProgress = false;
                     adapter.setCancellationInProgress(false);
                     progress.setVisibility(View.GONE);
-                    Toast.makeText(this, "Booking cancelled. The seat is available again.",
+                    Toast.makeText(this, booking.getPayment() == null
+                                    ? "Booking cancelled. The seat is available again."
+                                    : "Booking cancelled and seat released. Simulated refund recorded; no real money moved.",
                             Toast.LENGTH_SHORT).show();
                     loadBookings();
                 });

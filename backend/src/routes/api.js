@@ -3,7 +3,7 @@ import { ApiError } from '../errors.js';
 import { normalizeAvailability, normalizeBetween, normalizeFare, normalizeSchedule, normalizeStations } from '../provider/normalize.js';
 import { CLASS_CODES, enumValue, journeyDate, queryString, QUOTA_CODES, stationCode, stationLimit, trainNumber } from '../validation.js';
 
-export function createApiRouter(client) {
+export function createApiRouter(client, capabilities = {}) {
   const router = Router();
 
   router.get('/stations/search', async (req, res) => {
@@ -29,6 +29,7 @@ export function createApiRouter(client) {
   });
 
   router.get('/trains/:number/fare', async (req, res) => {
+    if (!capabilities.fare) throw new ApiError(503, 'CAPABILITY_UNAVAILABLE', 'Live fare access has not been verified for this provider account.');
     const number = trainNumber(req.params.number);
     const source = stationCode(req.query.source, 'Source station');
     const destination = stationCode(req.query.destination, 'Destination station');
@@ -39,10 +40,12 @@ export function createApiRouter(client) {
     const data = await client.get('fares/estimate', {
       train_number: number, from: source, to: destination, class: classCode, quota: quotaCode,
     });
+    res.set('Cache-Control', 'no-store');
     res.json({ success: true, data: { ...normalizeFare(data, { number, source, destination, classCode, quotaCode }), requestedJourneyDate: journeyDateValue }, meta: { requestId: req.id } });
   });
 
   router.get('/trains/:number/availability', async (req, res) => {
+    if (!capabilities.availability) throw new ApiError(503, 'CAPABILITY_UNAVAILABLE', 'Live availability access has not been verified for this provider account.');
     const number = trainNumber(req.params.number);
     const source = stationCode(req.query.source, 'Source station');
     const destination = stationCode(req.query.destination, 'Destination station');
@@ -53,6 +56,8 @@ export function createApiRouter(client) {
     const data = await client.get('availability/seats', {
       train_number: number, from: source, to: destination, date: journeyDateValue, class: classCode, quota: quotaCode,
     });
+    if (data?.journey_date !== journeyDateValue) throw new ApiError(502, 'INVALID_PROVIDER_RESPONSE', 'Availability date did not match the enquiry.');
+    res.set('Cache-Control', 'no-store');
     res.json({ success: true, data: normalizeAvailability(data, { number, source, destination, journeyDateValue, classCode, quotaCode }), meta: { requestId: req.id } });
   });
 

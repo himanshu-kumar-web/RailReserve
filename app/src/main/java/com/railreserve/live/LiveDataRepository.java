@@ -1,5 +1,6 @@
 package com.railreserve.live;
 
+import com.railreserve.BuildConfig;
 import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -22,7 +23,8 @@ public final class LiveDataRepository {
         if (stationCache.containsKey(normalized)) return stationCache.get(normalized);
         JSONObject data = api.stationSearch(query);
         List<LiveStation> loaded = Collections.unmodifiableList(new ArrayList<>(LiveDataParser.parseStations(data)));
-        stationCache.put(normalized, loaded);
+        // An empty response must remain retryable rather than being cached for the whole session.
+        if (!loaded.isEmpty()) stationCache.put(normalized, loaded);
         return loaded;
     }
 
@@ -32,20 +34,29 @@ public final class LiveDataRepository {
 
     public LiveFare getFare(String trainNumber, String from, String to, String date,
                             String classCode, String quotaCode) throws BackendException {
+        if (!BuildConfig.LIVE_FARE_ENABLED) throw new BackendException("CAPABILITY_UNAVAILABLE",
+                "Live fare access has not been verified for this provider account.");
         return LiveDataParser.parseFare(
                 api.fare(trainNumber, from, to, date, classCode, quotaCode));
     }
 
     public LiveAvailability getAvailability(String trainNumber, String from, String to, String date,
                                             String classCode, String quotaCode) throws BackendException {
+        if (!BuildConfig.LIVE_AVAILABILITY_ENABLED) throw new BackendException("CAPABILITY_UNAVAILABLE",
+                "Live availability access has not been verified for this provider account.");
         return LiveDataParser.parseAvailability(
                 api.availability(trainNumber, from, to, date, classCode, quotaCode));
     }
 
     public synchronized LiveSchedule getSchedule(String trainNumber) throws BackendException {
+        return getSchedule(trainNumber, false);
+    }
+
+    public synchronized LiveSchedule getSchedule(String trainNumber, boolean refresh) throws BackendException {
+        if (refresh) scheduleCache.remove(trainNumber);
         if (scheduleCache.containsKey(trainNumber)) return scheduleCache.get(trainNumber);
         LiveSchedule schedule = LiveDataParser.parseSchedule(api.schedule(trainNumber));
-        scheduleCache.put(trainNumber, schedule);
+        if (!schedule.getStops().isEmpty()) scheduleCache.put(trainNumber, schedule);
         return schedule;
     }
 }

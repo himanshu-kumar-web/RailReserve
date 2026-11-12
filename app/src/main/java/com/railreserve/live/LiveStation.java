@@ -1,6 +1,7 @@
 package com.railreserve.live;
 
-public final class LiveStation {
+public final class LiveStation implements java.io.Serializable {
+    private static final long serialVersionUID = 1L;
     private final String code;
     private final String name;
     private final String city;

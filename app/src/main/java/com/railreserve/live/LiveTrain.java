@@ -4,16 +4,27 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public final class LiveTrain {
+public final class LiveTrain implements java.io.Serializable {
+    private static final long serialVersionUID = 1L;
     private final String number, name, type, departure, arrival;
     private final LiveStation source, destination;
     private final Integer departureDay, arrivalDay, durationMinutes, totalHaltsBetween;
     private final Double distanceKm;
     private final List<String> runDays;
+    private final List<String> classes;
+    private final String classSource;
 
     public LiveTrain(String number, String name, String type, LiveStation source, LiveStation destination,
                      String departure, Integer departureDay, String arrival, Integer arrivalDay,
                      Integer durationMinutes, Double distanceKm, Integer totalHaltsBetween, List<String> runDays) {
+        this(number, name, type, source, destination, departure, departureDay, arrival, arrivalDay,
+                durationMinutes, distanceKm, totalHaltsBetween, runDays, null, null);
+    }
+
+    public LiveTrain(String number, String name, String type, LiveStation source, LiveStation destination,
+                     String departure, Integer departureDay, String arrival, Integer arrivalDay,
+                     Integer durationMinutes, Double distanceKm, Integer totalHaltsBetween, List<String> runDays,
+                     List<String> classes, String classSource) {
         this.number = number;
         this.name = name;
         this.type = type;
@@ -27,6 +38,8 @@ public final class LiveTrain {
         this.distanceKm = distanceKm;
         this.totalHaltsBetween = totalHaltsBetween;
         this.runDays = runDays == null ? null : Collections.unmodifiableList(new ArrayList<>(runDays));
+        this.classes = classes == null ? null : Collections.unmodifiableList(new ArrayList<>(classes));
+        this.classSource = classSource;
     }
 
     public String getNumber() { return number; }
@@ -42,4 +55,6 @@ public final class LiveTrain {
     public Double getDistanceKm() { return distanceKm; }
     public Integer getTotalHaltsBetween() { return totalHaltsBetween; }
     public List<String> getRunDays() { return runDays; }
+    public List<String> getClasses() { return classes; }
+    public String getClassSource() { return classSource; }
 }

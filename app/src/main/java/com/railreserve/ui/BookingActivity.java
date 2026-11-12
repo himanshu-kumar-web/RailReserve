@@ -12,6 +12,8 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.activity.OnBackPressedCallback;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -39,11 +41,16 @@ public class BookingActivity extends AppCompatActivity {
     public static final String EXTRA_ARRIVAL = "arrival";
     public static final String EXTRA_ARRIVAL_OFFSET = "arrival_offset";
     public static final String EXTRA_CLASS = "travel_class";
+    public static final String EXTRA_LIVE_SIMULATION = "live_derived_simulation";
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private BookingService service;
     private boolean destroyed;
     private boolean submitting;
+    private BookingSubmissionViewModel submission;
+    private AlertDialog confirmationDialog;
+    private TextView checkoutSummary, checkoutTotal, paymentStatus;
+    private Spinner paymentScenario;
     private long journeyId;
     private TravelClass travelClass;
     private Spinner seatSpinner;
@@ -62,6 +69,9 @@ public class BookingActivity extends AppCompatActivity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         setContentView(R.layout.activity_booking);
+        boolean simulation = getIntent().getBooleanExtra(EXTRA_LIVE_SIMULATION, false);
+        findViewById(R.id.bookingSimulationNotice).setVisibility(simulation ? View.VISIBLE : View.GONE);
+        findViewById(R.id.bookingSimulationPolicy).setVisibility(simulation ? View.VISIBLE : View.GONE);
         View root = findViewById(R.id.bookingRoot);
         ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -110,7 +120,7 @@ public class BookingActivity extends AppCompatActivity {
             @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 Seat seat = (Seat) parent.getItemAtPosition(position);
                 selectedSeatSummary.setText("Selected seat  |  " + seat.getCoach() + " - " + seat.getNumber());
-                fareSummary.setText("Fare  |  \u20B9 " + seat.getFare());
+                fareSummary.setText("Demo fare  |  \u20B9 " + seat.getFare());
             }
             @Override public void onNothingSelected(AdapterView<?> parent) {
                 selectedSeatSummary.setText("Select an available seat below");
@@ -132,10 +142,29 @@ public class BookingActivity extends AppCompatActivity {
 
         confirmButton.setEnabled(false);
         confirmButton.setOnClickListener(view -> submitBooking());
+        submission = new ViewModelProvider(this).get(BookingSubmissionViewModel.class);
+        OnBackPressedCallback savingBack = new OnBackPressedCallback(false) {
+            @Override public void handleOnBackPressed() {
+                BookingSubmissionViewModel.State current = submission.getState().getValue();
+                if (current != null && current.getStage() == BookingSubmissionViewModel.Stage.PROCESSING) { submission.cancelPayment(); return; }
+                if (current != null && !current.isSaving()) { submission.editReview(); loadAvailableSeats(); return; }
+                android.widget.Toast.makeText(BookingActivity.this,
+                        "Saving your demo booking. Please wait.", android.widget.Toast.LENGTH_SHORT).show();
+            }
+        };
+        getOnBackPressedDispatcher().addCallback(this, savingBack);
+        configureCheckout();
+        submission.getState().observe(this, result -> {
+            submitting = result != null && result.isSaving();
+            savingBack.setEnabled(result != null && result.getBooking() == null);
+            renderCheckout(result);
+            if (result != null && result.getBooking() != null) showConfirmation(result.getBooking());
+        });
+        submission.recover(service);
         if (journeyId <= 0 || travelClass == null) {
             seatStatus.setText("Invalid journey information. Return to search and choose a train.");
             seatStatus.setVisibility(View.VISIBLE);
-        } else {
+        } else if (submission.getState().getValue() == null) {
             loadAvailableSeats();
         }
     }
@@ -144,6 +173,7 @@ public class BookingActivity extends AppCompatActivity {
         progress.setVisibility(View.VISIBLE);
         seatStatus.setText("Loading available seats...");
         seatStatus.setVisibility(View.VISIBLE);
+        seatStatus.setClickable(false);
         confirmButton.setEnabled(false);
         executor.execute(() -> {
             try {
@@ -165,8 +195,9 @@ public class BookingActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     if (destroyed) return;
                     progress.setVisibility(View.GONE);
-                    seatStatus.setText(exception.getMessage() == null
-                            ? "Could not load seats." : exception.getMessage());
+                    seatStatus.setText("Could not load demo seats. Tap here to retry.");
+                    seatStatus.setOnClickListener(view -> loadAvailableSeats());
+                    seatStatus.setClickable(true);
                     seatStatus.setVisibility(View.VISIBLE);
                 });
             }
@@ -174,10 +205,11 @@ public class BookingActivity extends AppCompatActivity {
     }
 
     private void submitBooking() {
-        if (submitting) return;
+        if (submitting || submission.getState().getValue() != null) return;
         String name = nameInput.getText().toString().trim();
         if (name.length() < 2 || name.length() > 80) {
             nameInput.setError("Enter a name of 2 to 80 characters.");
+            nameInput.requestFocus();
             return;
         }
         int age;
@@ -185,10 +217,12 @@ public class BookingActivity extends AppCompatActivity {
             age = Integer.parseInt(ageInput.getText().toString().trim());
         } catch (Exception exception) {
             ageInput.setError("Enter an age from 1 to 120.");
+            ageInput.requestFocus();
             return;
         }
         if (age < 1 || age > 120) {
             ageInput.setError("Enter an age from 1 to 120.");
+            ageInput.requestFocus();
             return;
         }
         if (genderSpinner.getSelectedItemPosition() == 0) {
@@ -202,43 +236,81 @@ public class BookingActivity extends AppCompatActivity {
             return;
         }
 
-        submitting = true;
-        confirmButton.setEnabled(false);
-        confirmButton.setText("Confirming booking...");
-        progress.setVisibility(View.VISIBLE);
+        KeyboardHelper.dismiss(this);
         BookingRequest request = new BookingRequest(journeyId, selectedSeat.getId(),
                 travelClass, name, age, String.valueOf(genderSpinner.getSelectedItem()));
-        executor.execute(() -> {
-            try {
-                Booking booking = service.createBooking(request);
-                runOnUiThread(() -> {
-                    if (destroyed) return;
-                    progress.setVisibility(View.GONE);
-                    submitting = false;
-                    confirmButton.setText("Confirm booking");
-                    showConfirmation(booking);
-                });
-            } catch (Exception exception) {
-                runOnUiThread(() -> {
-                    if (destroyed) return;
-                    progress.setVisibility(View.GONE);
-                    submitting = false;
-                    confirmButton.setText("Confirm booking");
-                    confirmButton.setEnabled(false);
-                    new AlertDialog.Builder(this)
-                            .setTitle("Booking not completed")
-                            .setMessage(exception.getMessage() == null
-                                    ? "Please refresh the available seats and try again."
-                                    : exception.getMessage())
-                            .setPositiveButton("Refresh seats", (dialog, which) -> loadAvailableSeats())
-                            .setNegativeButton("Back to results", (dialog, which) -> finish())
-                            .show();
-                });
-            }
+        String summary = ((TextView) findViewById(R.id.bookingTrainSummary)).getText().toString()
+                + "\n\nPassenger: " + name + ", age " + age + ", " + genderSpinner.getSelectedItem()
+                + "\nSelected seat: " + selectedSeat.getCoach() + " - " + selectedSeat.getNumber()
+                + "\nDemo fare: " + PaymentReceiptText.amount(Math.multiplyExact((long) selectedSeat.getFare(), 100L));
+        submission.review(request, Math.multiplyExact((long) selectedSeat.getFare(), 100L), summary);
+    }
+
+    private void configureCheckout() {
+        checkoutSummary = findViewById(R.id.checkoutSummary);
+        checkoutTotal = findViewById(R.id.checkoutTotal);
+        paymentStatus = findViewById(R.id.demoPaymentStatus);
+        paymentScenario = findViewById(R.id.demoPaymentScenario);
+        ArrayAdapter<String> scenarios = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
+                new String[]{"Next demo attempt: success", "Next demo attempt: failure", "Next demo attempt: cancellation"});
+        scenarios.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        paymentScenario.setAdapter(scenarios);
+        findViewById(R.id.demoPaymentTestToggle).setOnClickListener(view -> paymentScenario.setVisibility(
+                paymentScenario.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE));
+        findViewById(R.id.demoPayButton).setOnClickListener(view -> {
+            BookingSubmissionViewModel.Simulation[] outcomes = BookingSubmissionViewModel.Simulation.values();
+            BookingSubmissionViewModel.Simulation outcome = outcomes[paymentScenario.getSelectedItemPosition()];
+            paymentScenario.setSelection(0);
+            submission.pay(service, outcome);
+        });
+        findViewById(R.id.cancelDemoPaymentButton).setOnClickListener(view -> submission.cancelPayment());
+        findViewById(R.id.editCheckoutButton).setOnClickListener(view -> {
+            BookingSubmissionViewModel.State current = submission.getState().getValue();
+            if (current == null || current.isSaving() || current.getBooking() != null) return;
+            submission.editReview();
+            loadAvailableSeats();
         });
     }
 
+    private void renderCheckout(BookingSubmissionViewModel.State result) {
+        boolean reviewing = result != null;
+        findViewById(R.id.bookingForm).setVisibility(reviewing ? View.GONE : View.VISIBLE);
+        findViewById(R.id.demoCheckoutPanel).setVisibility(reviewing ? View.VISIBLE : View.GONE);
+        progress.setVisibility(submitting ? View.VISIBLE : View.GONE);
+        confirmButton.setEnabled(!reviewing && seatAdapter.getCount() > 0);
+        if (!reviewing) return;
+        boolean complete = result.getBooking() != null;
+        checkoutSummary.setText(submission.getReviewSummary());
+        checkoutTotal.setText("Total demo fare: " + PaymentReceiptText.amount(submission.getAmountPaise()));
+        findViewById(R.id.demoPaymentProgress).setVisibility(submitting ? View.VISIBLE : View.GONE);
+        Button pay = findViewById(R.id.demoPayButton);
+        pay.setEnabled(!submitting && !complete);
+        pay.setText(submitting ? "Please wait..." : complete ? "Checkout completed"
+                : (result.getStage() == BookingSubmissionViewModel.Stage.FAILED
+                || result.getStage() == BookingSubmissionViewModel.Stage.CANCELLED ? "Retry " : "Pay ")
+                + PaymentReceiptText.amount(submission.getAmountPaise()) + " (Demo)");
+        findViewById(R.id.editCheckoutButton).setEnabled(!submitting && !complete);
+        findViewById(R.id.demoPaymentTestToggle).setEnabled(!submitting && !complete);
+        paymentScenario.setEnabled(!submitting && !complete);
+        findViewById(R.id.cancelDemoPaymentButton).setVisibility(
+                result.getStage() == BookingSubmissionViewModel.Stage.PROCESSING ? View.VISIBLE : View.GONE);
+        String message = result.getError();
+        if (message == null) {
+            switch (result.getStage()) {
+                case PROCESSING: message = "Processing Demo UPI simulation... No real money is involved."; break;
+                case COMMITTING: message = "Finalizing your demo reservation. Please wait for confirmation."; break;
+                case RECOVERING: message = "Checking this checkout for an existing reservation..."; break;
+                case COMPLETE: message = "CONFIRMED".equals(result.getBooking().getStatus())
+                        ? result.getBooking().getPayment() == null ? "Local demo booking confirmed. No demo-payment record exists."
+                        : "Demo payment SUCCESS. Your local booking is confirmed." : "This demo reservation was cancelled."; break;
+                default: message = "Review the details, then tap Pay (Demo).";
+            }
+        }
+        paymentStatus.setText(message);
+    }
+
     private void showConfirmation(Booking booking) {
+        if (confirmationDialog != null && confirmationDialog.isShowing()) return;
         View confirmation = getLayoutInflater().inflate(R.layout.dialog_booking_confirmation, null);
         ((TextView) confirmation.findViewById(R.id.confirmationStatus)).setText(booking.getStatus());
         ((TextView) confirmation.findViewById(R.id.confirmationPnr)).setText(booking.getPnr());
@@ -255,9 +327,11 @@ public class BookingActivity extends AppCompatActivity {
                 "Seat  |  " + booking.getCoach() + " - " + booking.getSeatNumber()
                         + "     Class  |  " + booking.getTravelClass().getLabel());
         ((TextView) confirmation.findViewById(R.id.confirmationFare)).setText(
-                "Total fare  |  \u20B9 " + booking.getFare());
+                "Total demo fare  |  \u20B9 " + booking.getFare());
 
-        new AlertDialog.Builder(this)
+        ((TextView) confirmation.findViewById(R.id.confirmationPayment)).setText(PaymentReceiptText.receipt(booking));
+        confirmationDialog = new AlertDialog.Builder(this)
+                .setTitle("CONFIRMED".equals(booking.getStatus()) ? "Booking confirmed" : "Booking cancelled")
                 .setView(confirmation)
                 .setCancelable(false)
                 .setPositiveButton("My bookings", (dialog, which) -> {
@@ -265,8 +339,10 @@ public class BookingActivity extends AppCompatActivity {
                     finish();
                 })
                 .setNegativeButton("Train search", (dialog, which) -> {
-                    finishAffinity();
-                    startActivity(new Intent(this, com.railreserve.MainActivity.class));
+                    Intent intent = new Intent(this, com.railreserve.MainActivity.class);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                    startActivity(intent);
+                    finish();
                 })
                 .show();
     }
@@ -274,6 +350,8 @@ public class BookingActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         destroyed = true;
+        if (confirmationDialog != null) confirmationDialog.dismiss();
+
         executor.shutdownNow();
         super.onDestroy();
     }

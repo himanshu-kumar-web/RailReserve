@@ -25,15 +25,22 @@ final class AppNavigation {
         button.setTextColor(ContextCompat.getColor(activity,
                 selected ? R.color.brand_dark : R.color.muted));
         button.setSelected(selected);
-        button.setOnClickListener(view -> navigate(activity, section));
+        button.setOnClickListener(view -> { if (!selected) navigate(activity, section); });
     }
 
-    private static void navigate(Activity activity, String section) {
+    static void onResume(Activity activity) { activity.getWindow().getDecorView().setTag(R.id.navHome, null); }
+
+    // Top-level sections switch without spatial motion; child screens retain normal navigation.
+    static void navigate(Activity activity, String section) {
+        if (Boolean.TRUE.equals(activity.getWindow().getDecorView().getTag(R.id.navHome))) return;
         if ("home".equals(section)) {
             if (activity instanceof AppSectionActivity) {
+                activity.getWindow().getDecorView().setTag(R.id.navHome, true);
                 Intent intent = new Intent(activity, LiveSearchActivity.class);
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_NO_ANIMATION);
                 activity.startActivity(intent);
+                activity.finish();
+                activity.overridePendingTransition(0, 0);
             }
             return;
         }
@@ -42,7 +49,10 @@ final class AppNavigation {
             return;
         }
         Intent intent = new Intent(activity, AppSectionActivity.class);
+        activity.getWindow().getDecorView().setTag(R.id.navHome, true);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_NO_ANIMATION);
         intent.putExtra(AppSectionActivity.EXTRA_SECTION, section);
         activity.startActivity(intent);
+        activity.overridePendingTransition(0, 0);
     }
 }

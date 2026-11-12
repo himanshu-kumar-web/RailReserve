@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/trainDetailsRoot" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@color/surface_soft" android:fillViewport="true">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+        <Button android:id="@+id/detailsBack" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:minHeight="48dp" android:text="@string/back_to_trains" android:textAllCaps="false"
+            android:background="@drawable/button_secondary" android:textColor="@color/brand_dark" />
+        <TextView android:id="@+id/detailsHeading" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:textSize="25sp" android:textColor="@color/ink" android:textStyle="bold" />
+        <TextView android:id="@+id/detailsJourney" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:padding="16dp" android:background="@drawable/live_search_card"
+            android:lineSpacingExtra="4dp" android:textSize="16sp" android:textColor="@color/ink" />
+        <TextView android:id="@+id/detailsTimetable" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:lineSpacingExtra="4dp" android:textSize="14sp" android:textColor="@color/muted" />
+        <Button android:id="@+id/detailsSchedule" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:minHeight="48dp" android:text="@string/view_scheduled_stops" android:textAllCaps="false"
+            android:background="@drawable/button_secondary" android:textColor="@color/brand_dark" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp"
+            android:text="@string/offered_classes" android:textSize="21sp" android:textColor="@color/ink" android:textStyle="bold" />
+        <TextView android:id="@+id/detailsClassesStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:textSize="14sp" android:textColor="@color/muted" android:accessibilityLiveRegion="polite" />
+        <ProgressBar android:id="@+id/detailsProgress" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal" android:layout_marginTop="8dp" />
+        <Button android:id="@+id/detailsRetry" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:minHeight="48dp" android:text="@string/retry_train_details" android:textAllCaps="false"
+            android:background="@drawable/button_secondary" android:textColor="@color/brand_dark" android:visibility="gone" />
+        <LinearLayout android:id="@+id/detailsClasses" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
+        <TextView android:id="@+id/detailsDemoOnlyNotice" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="20dp" android:padding="12dp" android:background="@drawable/live_route_badge"
+            android:text="@string/demo_classes_unverified" android:textSize="14sp" android:textColor="@color/brand_dark" android:visibility="gone" />
+        <LinearLayout android:id="@+id/detailsDemoOnlyClasses" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp"
+            android:text="@string/simulation_mode_notice" android:textSize="14sp" android:textColor="@color/brand_dark" />
+    </LinearLayout>
+</ScrollView>

@@ -40,6 +40,8 @@ public final class AppSectionActivity extends AppCompatActivity {
     private String currentSection = SECTION_TICKETS;
     private boolean initialResume = true;
     private boolean destroyed;
+    private int ticketGeneration;
+    private boolean openingChild;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -61,20 +63,25 @@ public final class AppSectionActivity extends AppCompatActivity {
         bookingService = BookingServiceFactory.create(getApplicationContext());
         ticketAdapter = new BookingAdapter(this, null);
         findViewById(R.id.openMyBookings).setOnClickListener(view ->
-                startActivity(new Intent(this, MyBookingsActivity.class)));
+                openChild(MyBookingsActivity.class));
         findViewById(R.id.openFindBooking).setOnClickListener(view ->
-                startActivity(new Intent(this, FindBookingActivity.class)));
+                openChild(FindBookingActivity.class));
         findViewById(R.id.openDemoWorkflow).setOnClickListener(view ->
-                startActivity(new Intent(this, com.railreserve.MainActivity.class)));
+                openChild(com.railreserve.MainActivity.class));
 
         String section = state == null
                 ? getIntent().getStringExtra(EXTRA_SECTION)
                 : state.getString(EXTRA_SECTION, SECTION_TICKETS);
         showSection(section == null ? SECTION_TICKETS : section);
+        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+            @Override public void handleOnBackPressed() { AppNavigation.navigate(AppSectionActivity.this, "home"); }
+        });
     }
 
     @Override protected void onResume() {
         super.onResume();
+        AppNavigation.onResume(this);
+        openingChild = false;
         if (initialResume) {
             initialResume = false;
         } else if (SECTION_TICKETS.equals(currentSection)) {
@@ -87,8 +94,20 @@ public final class AppSectionActivity extends AppCompatActivity {
         super.onSaveInstanceState(out);
     }
 
+    private void openChild(Class<?> destination) {
+        if (openingChild || destroyed) return;
+        openingChild = true;
+        startActivity(new Intent(this, destination));
+    }
+
     void showSection(String section) {
+        if (!SECTION_PROFILE.equals(section) && !SECTION_ABOUT.equals(section)) section = SECTION_TICKETS;
+        ticketGeneration++;
         currentSection = section;
+        getIntent().putExtra(EXTRA_SECTION, currentSection);
+        ticketCards.setVisibility(View.GONE);
+        ticketStatus.setVisibility(View.GONE);
+        ticketProgress.setVisibility(View.GONE);
         if (SECTION_PROFILE.equals(section)) {
             heading.setText(R.string.app_section_profile);
             intro.setText(R.string.profile_intro);
@@ -112,6 +131,7 @@ public final class AppSectionActivity extends AppCompatActivity {
     }
 
     private void loadTicketBookings() {
+        int generation = ++ticketGeneration;
         ticketProgress.setVisibility(View.VISIBLE);
         ticketStatus.setVisibility(View.VISIBLE);
         ticketStatus.setText(R.string.tickets_loading);
@@ -119,7 +139,7 @@ public final class AppSectionActivity extends AppCompatActivity {
             try {
                 List<Booking> bookings = bookingService.getBookings();
                 runOnUiThread(() -> {
-                    if (destroyed || !SECTION_TICKETS.equals(currentSection)) return;
+                    if (destroyed || generation != ticketGeneration || !SECTION_TICKETS.equals(currentSection)) return;
                     ticketProgress.setVisibility(View.GONE);
                     ticketCards.removeAllViews();
                     ticketAdapter.setBookings(bookings);
@@ -142,17 +162,22 @@ public final class AppSectionActivity extends AppCompatActivity {
                 });
             } catch (Exception exception) {
                 runOnUiThread(() -> {
-                    if (destroyed || !SECTION_TICKETS.equals(currentSection)) return;
+                    if (destroyed || generation != ticketGeneration || !SECTION_TICKETS.equals(currentSection)) return;
                     ticketProgress.setVisibility(View.GONE);
                     ticketCards.removeAllViews();
                     ticketCards.setVisibility(View.GONE);
-                    ticketStatus.setText(exception.getMessage() == null
-                            ? getString(R.string.tickets_load_failed)
-                            : exception.getMessage());
+                    ticketStatus.setText(R.string.tickets_load_failed);
                     ticketStatus.setVisibility(View.VISIBLE);
                 });
             }
         });
+    }
+
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        String section = intent.getStringExtra(EXTRA_SECTION);
+        showSection(section == null ? SECTION_TICKETS : section);
     }
 
     @Override protected void onDestroy() {

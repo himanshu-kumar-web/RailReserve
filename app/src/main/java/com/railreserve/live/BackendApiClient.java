@@ -1,5 +1,6 @@
 package com.railreserve.live;
 
+import android.util.Log;
 import com.railreserve.BuildConfig;
 import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
@@ -13,6 +14,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
 public final class BackendApiClient {
+    private static final String TAG = "RailReserveBackend";
     private static final int CONNECT_TIMEOUT_MS = 8000;
     private static final int READ_TIMEOUT_MS = 25000;
     private final String baseUrl;
@@ -21,6 +23,15 @@ public final class BackendApiClient {
         String configured = BuildConfig.BACKEND_BASE_URL == null ? "" : BuildConfig.BACKEND_BASE_URL.trim();
         while (configured.endsWith("/")) configured = configured.substring(0, configured.length() - 1);
         baseUrl = configured;
+        if (BuildConfig.DEBUG) {
+            try {
+                URL url = new URL(baseUrl);
+                Log.d(TAG, "Effective backend: " + url.getProtocol() + "://" + url.getHost()
+                        + (url.getPort() == -1 ? "" : ":" + url.getPort()));
+            } catch (IOException exception) {
+                Log.d(TAG, "Effective backend: invalid URL");
+            }
+        }
     }
 
     public JSONObject stationSearch(String query) throws BackendException {
@@ -50,6 +61,8 @@ public final class BackendApiClient {
     private JSONObject get(String path) throws BackendException {
         if (baseUrl.isEmpty()) throw new BackendException("BACKEND_NOT_CONFIGURED", "Train-data service URL is not configured.");
         HttpURLConnection connection = null;
+        long started = System.nanoTime();
+        String endpoint = path.split("\\?", 2)[0];
         try {
             URL url = new URL(baseUrl + path);
             connection = (HttpURLConnection) (isLoopbackHost(url.getHost())
@@ -61,6 +74,7 @@ public final class BackendApiClient {
             connection.setRequestProperty("Accept", "application/json");
             connection.setInstanceFollowRedirects(false);
             int status = connection.getResponseCode();
+            if (BuildConfig.DEBUG) Log.d(TAG, endpoint + " HTTP " + status);
             InputStream stream = status >= 400 ? connection.getErrorStream() : connection.getInputStream();
             String body = readBody(stream);
             JSONObject data;
@@ -77,16 +91,23 @@ public final class BackendApiClient {
             }
             return data;
         } catch (SocketTimeoutException exception) {
+            if (BuildConfig.DEBUG) Log.d(TAG, endpoint + " TIMEOUT");
             throw new BackendException("TIMEOUT", "Train-data service timed out. Check your connection and retry.", exception);
         } catch (BackendException exception) {
+            if (BuildConfig.DEBUG) Log.d(TAG, endpoint + " backend error "
+                    + (exception.getCode() != null && exception.getCode().matches("[A-Z0-9_]{1,64}")
+                    ? exception.getCode() : "UNKNOWN"));
             throw exception;
         } catch (IOException | RuntimeException exception) {
+            if (BuildConfig.DEBUG) Log.d(TAG, endpoint + " connection error " + exception.getClass().getSimpleName());
             if (Thread.currentThread().isInterrupted()) {
                 throw new BackendException("CANCELLED", "Request cancelled.", exception);
             }
             throw new BackendException("CONNECTION", "Unable to connect to the train-data service. Check your connection and try again.", exception);
         } finally {
             if (connection != null) connection.disconnect();
+            if (BuildConfig.DEBUG) Log.d(TAG, endpoint + " finished in "
+                    + ((System.nanoTime() - started) / 1_000_000) + " ms");
         }
     }
 

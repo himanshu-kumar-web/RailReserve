@@ -9,9 +9,17 @@ public final class LiveSchedule {
     private final LiveStation source, destination;
     private final List<String> runDays;
     private final List<LiveTrainStop> stops;
+    private final List<String> classes;
+    private final String classSource;
 
     public LiveSchedule(String number, String name, String type, String category, LiveStation source,
                         LiveStation destination, List<String> runDays, List<LiveTrainStop> stops) {
+        this(number, name, type, category, source, destination, runDays, stops, null, null);
+    }
+
+    public LiveSchedule(String number, String name, String type, String category, LiveStation source,
+                        LiveStation destination, List<String> runDays, List<LiveTrainStop> stops,
+                        List<String> classes, String classSource) {
         this.number = number;
         this.name = name;
         this.type = type;
@@ -20,6 +28,8 @@ public final class LiveSchedule {
         this.destination = destination;
         this.runDays = runDays == null ? null : Collections.unmodifiableList(new ArrayList<>(runDays));
         this.stops = Collections.unmodifiableList(new ArrayList<>(stops));
+        this.classes = classes == null ? null : Collections.unmodifiableList(new ArrayList<>(classes));
+        this.classSource = classSource;
     }
 
     public String getNumber() { return number; }
@@ -30,4 +40,6 @@ public final class LiveSchedule {
     public LiveStation getDestination() { return destination; }
     public List<String> getRunDays() { return runDays; }
     public List<LiveTrainStop> getStops() { return stops; }
+    public List<String> getClasses() { return classes; }
+    public String getClassSource() { return classSource; }
 }

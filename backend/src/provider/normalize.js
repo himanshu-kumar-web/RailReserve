@@ -16,6 +16,12 @@ function boolean(value) {
   return typeof value === 'boolean' ? value : null;
 }
 
+// Only the provider's offered-class list establishes support. Never expand by train type.
+function offeredClasses(value) {
+  if (!Array.isArray(value)) return null;
+  return [...new Set(value.filter((code) => typeof code === 'string' && /^[A-Z0-9]{1,4}$/.test(code)))];
+}
+
 export function normalizeStations(data) {
   const results = Array.isArray(data) && data.length === 0 ? data : object(data).results;
   if (!Array.isArray(results)) throw invalidProviderData('Station search did not return a station list.');
@@ -54,6 +60,8 @@ export function normalizeBetween(data, requestedRoute) {
         name: text(entry.train_name),
         type: text(entry.train_type),
         runDays: Array.isArray(entry.running_days) ? entry.running_days : null,
+        classes: offeredClasses(entry.classes),
+        classSource: 'RailCore route search',
         from: {
           station: { code: from, name: null }, departure: text(entry.departure_time),
           day: departureDay, sequence: null,
@@ -84,6 +92,8 @@ export function normalizeSchedule(data) {
       source: { code: text(item.source_station_code), name: null },
       destination: { code: text(item.destination_station_code), name: null },
       runDays: Array.isArray(item.running_days) ? item.running_days : null,
+      classes: offeredClasses(item.classes),
+      classSource: 'RailCore schedule',
       distanceKm: number(item.distance_km), durationMinutes: number(item.total_duration_minutes),
       totalHalts: route.filter((stop) => stop.is_stop === true).length,
     },
@@ -105,11 +115,14 @@ const FARE_FIELDS = ['baseFare', 'reservationCharge', 'superfastCharge', 'otherC
 
 export function normalizeFare(data, requested) {
   const item = object(data);
+  validateEnquiryIdentity(item, requested);
   const fares = Array.isArray(item.fares) ? item.fares : [];
   const fare = fares.find((entry) => object(entry).class_code === requested.classCode);
   const breakdown = Object.fromEntries(FARE_FIELDS.map((key) => [key, null]));
-  const totalFare = number(object(fare).fare);
+  const amount = number(object(fare).fare);
+  const totalFare = object(fare).currency === 'INR' && amount !== null && amount >= 0 ? amount : null;
   return {
+    providerSource: 'RailCore fare estimate', retrievedAt: new Date().toISOString(),
     trainNumber: text(item.train_number) || requested.number, trainName: null,
     source: { code: text(item.from_station_code) || requested.source, name: null },
     destination: { code: text(item.to_station_code) || requested.destination, name: null },
@@ -129,10 +142,13 @@ function classifyAvailability(raw) {
 
 export function normalizeAvailability(data, requested) {
   const item = object(data);
+  validateEnquiryIdentity(item, requested);
   const classes = Array.isArray(item.classes) ? item.classes : [];
   const result = classes.find((entry) => object(entry).class_code === requested.classCode);
   const rawStatus = text(object(result).availability_text) || text(object(result).status);
   return {
+    providerSource: 'RailCore availability', retrievedAt: new Date().toISOString(),
+    inventoryUpdatedAt: text(object(result).last_updated_at) || text(item.inventory_updated_at),
     trainNumber: text(item.train_number) || requested.number, trainName: null,
     source: { code: text(item.from_station_code) || requested.source, name: null },
     destination: { code: text(item.to_station_code) || requested.destination, name: null },
@@ -142,6 +158,15 @@ export function normalizeAvailability(data, requested) {
     availabilityStatus: rawStatus,
     statusType: classifyAvailability(rawStatus),
   };
+}
+
+function validateEnquiryIdentity(item, requested) {
+  for (const [key, expected] of [['train_number', requested.number], ['from_station_code', requested.source],
+    ['to_station_code', requested.destination], ['quota', requested.quotaCode]]) {
+    if (item[key] !== undefined && item[key] !== null && item[key] !== expected) {
+      throw invalidProviderData('Provider enquiry did not match the requested train, route or quota.');
+    }
+  }
 }
 
 function dayOffset(time, durationMinutes, journeyDay) {

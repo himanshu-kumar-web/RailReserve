@@ -28,6 +28,8 @@ public final class FindBookingActivity extends AppCompatActivity {
     private View resultCard;
     private BookingService service;
     private boolean destroyed;
+    private int lookupGeneration;
+    private boolean lookingUp;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -58,6 +60,8 @@ public final class FindBookingActivity extends AppCompatActivity {
         pnrInput.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                lookupGeneration++;
+                finishLookup();
                 resultCard.setVisibility(View.GONE);
                 message.setVisibility(View.GONE);
                 pnrInput.setError(null);
@@ -67,6 +71,7 @@ public final class FindBookingActivity extends AppCompatActivity {
     }
 
     private void lookup() {
+        if (lookingUp) return;
         String pnr = pnrInput.getText().toString().trim();
         if (pnr.isEmpty()) {
             pnrInput.setError("Enter your 10-digit PNR.");
@@ -81,6 +86,9 @@ public final class FindBookingActivity extends AppCompatActivity {
         resultCard.setVisibility(View.GONE);
         message.setVisibility(View.GONE);
         pnrInput.setError(null);
+        KeyboardHelper.dismiss(this);
+        lookingUp = true;
+        int generation = ++lookupGeneration;
         lookupButton.setEnabled(false);
         lookupButton.setText("Searching...");
         progress.setVisibility(View.VISIBLE);
@@ -88,14 +96,14 @@ public final class FindBookingActivity extends AppCompatActivity {
             try {
                 Booking booking = service.findBookingByPnr(pnr);
                 runOnUiThread(() -> {
-                    if (destroyed) return;
+                    if (destroyed || generation != lookupGeneration) return;
                     if (booking == null) showMessage("No booking found for this PNR. Check it and try again.", false);
                     else showBooking(booking);
                     finishLookup();
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> {
-                    if (destroyed) return;
+                    if (destroyed || generation != lookupGeneration) return;
                     showMessage("We couldn't look up this booking. Please try again.", true);
                     finishLookup();
                 });
@@ -104,6 +112,7 @@ public final class FindBookingActivity extends AppCompatActivity {
     }
 
     private void finishLookup() {
+        lookingUp = false;
         progress.setVisibility(View.GONE);
         lookupButton.setEnabled(true);
         lookupButton.setText("Find booking");
@@ -116,6 +125,7 @@ public final class FindBookingActivity extends AppCompatActivity {
     }
 
     private void showBooking(Booking booking) {
+        ((TextView) findViewById(R.id.lookupPayment)).setText(PaymentReceiptText.receipt(booking));
         resultPnr.setText("DEMO PNR  " + booking.getPnr());
         boolean cancelled = "CANCELLED".equalsIgnoreCase(booking.getStatus());
         resultStatus.setText(cancelled ? "CANCELLED" : booking.getStatus());
@@ -127,7 +137,7 @@ public final class FindBookingActivity extends AppCompatActivity {
                 + (booking.getArrivalDayOffset() > 0 ? " (next day)" : ""));
         passenger.setText(booking.getPassengerName() + "  ·  " + booking.getAge() + " years  ·  " + booking.getGender());
         seat.setText(booking.getTravelClass().getLabel() + "  ·  " + booking.getCoach() + " " + booking.getSeatNumber());
-        fare.setText("₹ " + booking.getFare());
+        fare.setText("Demo fare: " + PaymentReceiptText.amount(Math.multiplyExact((long) booking.getFare(), 100L)));
         cancelledNote.setVisibility(cancelled ? View.VISIBLE : View.GONE);
         resultCard.setVisibility(View.VISIBLE);
     }

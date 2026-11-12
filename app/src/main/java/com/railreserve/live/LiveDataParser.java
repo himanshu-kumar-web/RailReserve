@@ -47,7 +47,8 @@ public final class LiveDataParser {
                     optionalString(routeFrom, "departure"), optionalInteger(routeFrom, "day"),
                     optionalString(routeTo, "arrival"), optionalInteger(routeTo, "day"),
                     optionalInteger(row, "durationMinutes"), optionalDouble(row, "distanceKm"),
-                    optionalInteger(row, "totalHaltsBetween"), optionalStrings(row.optJSONArray("runDays"))));
+                    optionalInteger(row, "totalHaltsBetween"), optionalStrings(row.optJSONArray("runDays")),
+                    classCodes(row.optJSONArray("classes")), optionalString(row, "classSource")));
         }
         return trains;
     }
@@ -71,7 +72,8 @@ public final class LiveDataParser {
         }
         return new LiveSchedule(number, name, optionalString(train, "type"), optionalString(train, "category"),
                 parseStation(train.optJSONObject("source")), parseStation(train.optJSONObject("destination")),
-                optionalStrings(train.optJSONArray("runDays")), stops);
+                optionalStrings(train.optJSONArray("runDays")), stops,
+                classCodes(train.optJSONArray("classes")), optionalString(train, "classSource"));
     }
 
     public static LiveAvailability parseAvailability(JSONObject data) throws BackendException {
@@ -80,7 +82,8 @@ public final class LiveDataParser {
         if (status == null || statusType == null) {
             throw malformed("Seat availability response was incomplete.");
         }
-        return new LiveAvailability(status, statusType, optionalString(data, "availabilityDate"));
+        return new LiveAvailability(status, statusType, optionalString(data, "availabilityDate"),
+                optionalString(data, "providerSource"), optionalString(data, "retrievedAt"), optionalString(data, "inventoryUpdatedAt"));
     }
 
     public static LiveFare parseFare(JSONObject data) throws BackendException {
@@ -89,10 +92,10 @@ public final class LiveDataParser {
         }
         boolean known = data.optBoolean("fareKnown");
         Double total = optionalDouble(data, "totalFare");
-        if (known && (total == null || total < 0)) {
+        if (known && (total == null || !Double.isFinite(total) || total < 0)) {
             throw malformed("Fare response did not include a valid total.");
         }
-        return new LiveFare(known, total);
+        return new LiveFare(known, known ? total : null, optionalString(data, "providerSource"), optionalString(data, "retrievedAt"));
     }
 
     public static JSONObject successData(String body) throws BackendException {
@@ -156,11 +159,22 @@ public final class LiveDataParser {
         return result;
     }
 
+    private static List<String> classCodes(JSONArray values) {
+        if (values == null) return null;
+        List<String> result = new ArrayList<>();
+        for (int i = 0; i < values.length(); i++) {
+            Object value = values.opt(i);
+            if (value instanceof String && ((String) value).matches("[A-Z0-9]{1,4}") && !result.contains(value)) result.add((String) value);
+        }
+        return result;
+    }
+
     private static BackendException malformed(String message) {
         return new BackendException("INVALID_RESPONSE", message);
     }
 
     public static String userMessage(String code) {
+        if ("CAPABILITY_UNAVAILABLE".equals(code)) return "This live capability has not been verified for the current provider account.";
         if ("PROVIDER_NOT_CONFIGURED".equals(code)) return "Train-data service is not configured. Try again later.";
         if ("PROVIDER_AUTH_ERROR".equals(code)) return "The provider rejected this request. Please try again later.";
         if ("PROVIDER_ACCESS_DENIED".equals(code)) return "The provider key does not have access to this service. Check its scopes and plan.";

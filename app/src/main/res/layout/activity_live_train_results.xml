@@ -47,44 +47,12 @@
             android:textSize="13sp" />
     </LinearLayout>
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:background="@drawable/live_search_card"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Class"
-            android:textColor="@color/ink"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:paddingStart="14dp" />
-
-        <Spinner
-            android:id="@+id/liveAvailabilityClass"
-            android:layout_width="wrap_content"
-            android:layout_height="48dp"
-            android:layout_marginStart="8dp" />
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="end"
-            android:paddingEnd="14dp"
-            android:text="Select on a train"
-            android:textColor="@color/muted"
-            android:textSize="11sp" />
-    </LinearLayout>
-
     <TextView
+        android:id="@+id/liveCapabilityNotice"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
-        android:text="Fare estimates and seat checks are on demand. Seat availability uses General quota and may use provider credits."
+        android:text="@string/live_results_details_notice"
         android:textColor="@color/brand_dark"
         android:textSize="12sp" />
 

@@ -34,6 +34,7 @@
             android:letterSpacing="0.12" />
         <TextView
             android:id="@+id/confirmationPnr"
+            android:textIsSelectable="true"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="3dp"
@@ -102,5 +103,14 @@
             android:textColor="@color/brand_dark"
             android:textSize="17sp"
             android:textStyle="bold" />
+        <TextView
+            android:id="@+id/confirmationPayment"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:textIsSelectable="true"
+            android:lineSpacingExtra="4dp"
+            android:textColor="@color/brand_dark"
+            android:textSize="13sp" />
     </LinearLayout>
 </ScrollView>

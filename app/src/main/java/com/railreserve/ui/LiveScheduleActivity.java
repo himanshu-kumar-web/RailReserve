@@ -69,6 +69,7 @@ public final class LiveScheduleActivity extends AppCompatActivity {
         progress.setVisibility(View.VISIBLE);
         status.setVisibility(View.GONE);
         retry.setVisibility(View.GONE);
+        adapter.clear();
         executor.execute(() -> {
             try {
                 LiveSchedule schedule = repository.getSchedule(trainNumber);
@@ -77,14 +78,15 @@ public final class LiveScheduleActivity extends AppCompatActivity {
                     progress.setVisibility(View.GONE);
                     adapter.clear();
                     adapter.addAll(schedule.getStops());
-                    if (schedule.getStops().isEmpty()) showStatus("No schedule stops were returned for this train.", false);
+                    if (schedule.getStops().isEmpty()) showStatus("No schedule stops were returned for this train.", true);
                     else status.setVisibility(View.GONE);
                 });
-            } catch (BackendException exception) {
+            } catch (Exception exception) {
                 runOnUiThread(() -> {
                     if (destroyed || requestVersion.get() != version) return;
                     progress.setVisibility(View.GONE);
-                    showStatus(exception.getMessage(), true);
+                    showStatus(exception instanceof BackendException ? exception.getMessage()
+                            : "Could not load the schedule. Please retry.", true);
                 });
             }
         });

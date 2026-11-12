@@ -6,8 +6,8 @@ Live Train Search is read-only and separate from Demo Booking. It calls the Rail
 
 The app reads one `BuildConfig.BACKEND_BASE_URL` value per build variant. No provider credential belongs in the Android project.
 
-- Debug defaults to `http://10.0.2.2:3000`, the Android emulator's route to the development computer.
-- Release defaults to an HTTPS placeholder and refuses a non-HTTPS `railreserveBackendUrl` Gradle property. Set that property to the deployed HTTPS backend.
+- Debug and release default to the deployed backend at `https://railreserve-x8fq.onrender.com`.
+- You can override the backend with `railreserveDebugBackendUrl` or `railreserveBackendUrl` Gradle properties.
 - Debug builds alone include a cleartext network policy for local development.
 
 To use a physical Android device, put the phone and computer on the same trusted network, allow inbound port 3000 through the computer firewall, and build with the computer's LAN address:

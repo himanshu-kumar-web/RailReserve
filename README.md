@@ -35,7 +35,7 @@ The APK is created at:
 app\build\outputs\apk\debug\app-debug.apk
 ```
 
-This default build points to `http://10.0.2.2:3000`, which is the Android emulator's route to a backend running on the development computer. For a build without a working backend, the APK can still be installed, but live searches will not work until the backend is reachable.
+This default build points to the deployed backend at `https://railreserve-x8fq.onrender.com`. You can override it with `-PrailreserveDebugBackendUrl=...` when building against a different backend.
 
 ### Install on an emulator or USB-connected phone
 

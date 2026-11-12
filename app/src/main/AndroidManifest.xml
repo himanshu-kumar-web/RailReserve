@@ -24,8 +24,10 @@
         </activity>
         <activity android:name=".ui.AppSectionActivity" android:exported="false" />
         <activity android:name=".ui.LiveTrainResultsActivity" android:exported="false" />
+        <activity android:name=".ui.TrainDetailsActivity" android:exported="false" />
         <activity android:name=".ui.LiveScheduleActivity" android:exported="false" />
         <activity android:name=".ui.BookingActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ui.SimulationEntryActivity" android:exported="false" />
         <activity android:name=".ui.MyBookingsActivity" android:exported="false" />
         <activity android:name=".ui.FindBookingActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".MainActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />

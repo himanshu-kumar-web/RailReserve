@@ -9,6 +9,7 @@ import android.widget.Button;
 import android.widget.TextView;
 import com.railreserve.R;
 import com.railreserve.model.Booking;
+import com.railreserve.ui.PaymentReceiptText;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,6 +49,7 @@ public final class BookingAdapter extends BaseAdapter {
                 ? inflater.inflate(R.layout.item_booking, parent, false)
                 : convertView;
         Booking booking = getItem(position);
+        ((TextView) view.findViewById(R.id.bookingPayment)).setText(PaymentReceiptText.receipt(booking));
         boolean confirmed = "CONFIRMED".equals(booking.getStatus());
 
         ((TextView) view.findViewById(R.id.bookingPnr)).setText("DEMO PNR   " + booking.getPnr());
@@ -62,7 +64,7 @@ public final class BookingAdapter extends BaseAdapter {
                 "Passenger  |  " + booking.getPassengerName() + ", age " + booking.getAge());
         ((TextView) view.findViewById(R.id.bookingClassFare)).setText(
                 booking.getTravelClass().getLabel() + "  |  " + booking.getCoach() + " Seat "
-                        + booking.getSeatNumber() + "  |  \u20B9 " + booking.getFare());
+                        + booking.getSeatNumber() + "  |  Demo fare \u20B9 " + booking.getFare());
 
         TextView status = view.findViewById(R.id.bookingStatus);
         status.setText(booking.getStatus());
