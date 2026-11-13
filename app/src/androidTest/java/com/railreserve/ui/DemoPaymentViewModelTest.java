@@ -17,6 +17,54 @@ import static org.junit.Assert.*;
 
 @RunWith(AndroidJUnit4.class)
 public class DemoPaymentViewModelTest {
+    @Test public void expiredOrMismatchedQuoteCannotStartCheckoutButFreshReenquiryCan() throws Exception {
+        BookingSubmissionViewModel model=main(BookingSubmissionViewModel::new);
+        ViewModelStore store=main(()->{ ViewModelStore value=new ViewModelStore(); value.put("quote",model); return value; });
+        try {
+            main(()->{
+                for(int invalid=0;invalid<3;invalid++) {
+                    com.railreserve.model.FareSnapshot quote=new com.railreserve.model.FareSnapshot("15004","GKP","PRYJ",java.time.LocalDate.now().toString(),
+                            invalid==1 ? "1A" : "2A","GN",87500,"RailCore fare estimate",java.time.Instant.now().minusSeconds(invalid==0 ? 61 : 0).toString(),null,null,null,null);
+                    com.railreserve.model.BookingRequest draft=new com.railreserve.model.BookingRequest(1,1,com.railreserve.model.TravelClass.AC_TWO_TIER,"Passenger",25,"Other",null,null,quote);
+                    long amount=invalid==2 ? 10000 : 87500;
+                    assertThrows(IllegalArgumentException.class,()->model.review(draft,amount,"Invalid quote"));
+                    assertNull(model.getState().getValue()); assertNull(model.getCheckoutReference());
+                }
+                com.railreserve.model.FareSnapshot fresh=new com.railreserve.model.FareSnapshot("15004","GKP","PRYJ",java.time.LocalDate.now().toString(),"2A","GN",87500,"RailCore fare estimate",java.time.Instant.now().toString(),null,null,null,null);
+                model.review(new com.railreserve.model.BookingRequest(1,1,com.railreserve.model.TravelClass.AC_TWO_TIER,"Passenger",25,"Other",null,null,fresh),87500,"Fresh quote");
+                assertEquals(BookingSubmissionViewModel.Stage.REVIEW,model.getState().getValue().getStage()); assertEquals(87500,model.getAmountPaise());
+                return null;
+            });
+        } finally { main(()->{ store.clear(); return null; }); }
+    }
+    @Test public void savedQuoteSurvivesRecoveryAndExplicitPayUsesTheSameAmount() throws Exception {
+        try (DemoPaymentTestDatabase fixture = new DemoPaymentTestDatabase()) {
+            String date=java.time.LocalDate.now().plusDays(1).toString(), time=java.time.Instant.now().toString();
+            com.railreserve.model.FareSnapshot quote=new com.railreserve.model.FareSnapshot("15004","GKP","PRYJ",date,"2A","GN",24500,"RailCore fare estimate",time,"GNWL107/WL62","WAITLIST","RailCore availability",time);
+            com.railreserve.model.TrainSearchResult scenario=new com.railreserve.service.SimulationScenarioService(new com.railreserve.dao.SQLiteSimulationScenarioDao(fixture.helper))
+                    .prepare(new com.railreserve.model.SimulationRequest("15004","TEST FIXTURE","GKP","Gorakhpur","PRYJ","Prayagraj",date,com.railreserve.model.TravelClass.AC_TWO_TIER,"20:00","08:00",0,1,quote));
+            com.railreserve.model.BookingRequest draft=new com.railreserve.model.BookingRequest(scenario.getJourneyId(),fixture.service.getAvailableSeats(scenario.getJourneyId(),"2A").get(0).getId(),com.railreserve.model.TravelClass.AC_TWO_TIER,"Passenger",25,"Other",null,null,quote);
+            SavedStateHandle saved=main(SavedStateHandle::new);
+            BookingSubmissionViewModel first=main(()->new BookingSubmissionViewModel(saved));
+            ViewModelStore store=main(()->{ ViewModelStore value=new ViewModelStore(); value.put("first",first); return value; });
+            try {
+                main(()->{ first.review(draft,24500,"Captured quote fixture"); return null; });
+                // Round-trip the Bundle through Parcel, as saved instance state does.
+                SavedStateHandle restored=main(()->{
+                    Bundle bundle=saved.get("demoCheckoutDraft"); android.os.Parcel parcel=android.os.Parcel.obtain();
+                    try { parcel.writeBundle(bundle); parcel.setDataPosition(0); Bundle copy=parcel.readBundle(com.railreserve.model.FareSnapshot.class.getClassLoader());
+                        Map<String,Object> data=new HashMap<>(); data.put("demoCheckoutDraft",copy); data.put("demoCheckoutSummary",saved.get("demoCheckoutSummary")); return new SavedStateHandle(data);
+                    } finally { parcel.recycle(); }
+                });
+                BookingSubmissionViewModel next=main(()->new BookingSubmissionViewModel(restored));
+                main(()->{ store.put("next",next); next.recover(fixture.service); return null; }); waitStage(next,BookingSubmissionViewModel.Stage.REVIEW);
+                assertEquals(24500,next.getAmountPaise()); assertEquals(first.getCheckoutReference(),next.getCheckoutReference());
+                main(()->{ next.pay(fixture.service,BookingSubmissionViewModel.Simulation.SUCCESS); return null; }); waitStage(next,BookingSubmissionViewModel.Stage.COMPLETE);
+                Booking result=main(()->next.getState().getValue().getBooking()); assertEquals(245,result.getFare());
+                assertEquals(24500,result.getPayment().getAmountPaise()); assertEquals("GNWL107/WL62",result.getFareSnapshot().getAvailability());
+            } finally { main(()->{ store.clear(); return null; }); }
+        }
+    }
     @Test public void failedAndCancelledSimulationsWriteNothingAndRetrySucceeds() throws Exception {
         try (DemoPaymentTestDatabase fixture = new DemoPaymentTestDatabase()) {
             BookingSubmissionViewModel model = main(BookingSubmissionViewModel::new);

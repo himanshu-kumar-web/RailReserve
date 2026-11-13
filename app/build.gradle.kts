@@ -38,6 +38,10 @@ android {
 
     buildTypes {
         debug {
+            // Only the explicitly verified deployed service opts in by default; overrides retain a kill switch.
+            val verifiedBackend = debugBackendUrl.trimEnd('/') == "https://railreserve-x8fq.onrender.com"
+            buildConfigField("boolean", "LIVE_FARE_ENABLED", providers.gradleProperty("railreserveLiveFareEnabled").getOrElse(verifiedBackend.toString()).toBoolean().toString())
+            buildConfigField("boolean", "LIVE_AVAILABILITY_ENABLED", providers.gradleProperty("railreserveLiveAvailabilityEnabled").getOrElse(verifiedBackend.toString()).toBoolean().toString())
             buildConfigField("String", "BACKEND_BASE_URL", buildConfigString(debugBackendUrl))
             manifestPlaceholders["usesCleartextTraffic"] = "true"
         }

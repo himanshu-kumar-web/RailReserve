@@ -16,5 +16,8 @@ public final class LiveClassCatalog {
             default: return "Provider class";
         }
     }
-    public static boolean supportsDemo(String code) { return "SL".equals(code) || "3A".equals(code); }
+    public static boolean supportsDemo(String code) {
+        try { com.railreserve.model.TravelClass.fromCode(code); return true; }
+        catch(IllegalArgumentException unsupported) { return false; }
+    }
 }

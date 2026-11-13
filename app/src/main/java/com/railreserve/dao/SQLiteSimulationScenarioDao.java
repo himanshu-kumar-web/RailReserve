@@ -56,8 +56,8 @@ public final class SQLiteSimulationScenarioDao implements SimulationScenarioDao 
         for (int number = 1; number <= SimulationScenarioPolicy.SEAT_COUNT; number++) {
             ContentValues seat = new ContentValues();
             seat.put("journey_id", journeyId); seat.put("travel_class", request.getTravelClass().getCode());
-            seat.put("coach", "SL".equals(request.getTravelClass().getCode()) ? "DEMO-S1" : "DEMO-B1");
-            seat.put("seat_number", number); seat.put("fare", SimulationScenarioPolicy.fareRupees(request.getTravelClass()));
+            seat.put("coach", "SL".equals(request.getTravelClass().getCode()) ? "DEMO-S1" : "3A".equals(request.getTravelClass().getCode()) ? "DEMO-B1" : "DEMO-"+request.getTravelClass().getCode()+"1");
+            seat.put("seat_number", number); seat.put("fare", request.getFareSnapshot() == null ? SimulationScenarioPolicy.fareRupees(request.getTravelClass()) : request.getFareSnapshot().getFareRupees());
             seat.put("status", "AVAILABLE");
             db.insertOrThrow("seats", null, seat);
         }

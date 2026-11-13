@@ -26,8 +26,9 @@ public final class LiveTrainAdapter extends ArrayAdapter<LiveTrain> {
         View row = convertView == null ? inflater.inflate(R.layout.item_live_train, parent, false) : convertView;
         LiveTrain train = getItem(position);
         if (train == null) return row;
-        ((TextView) row.findViewById(R.id.liveTrainName)).setText(value(train.getName()) + "  ·  " + value(train.getNumber()));
-        ((TextView) row.findViewById(R.id.liveTrainType)).setText("Train " + value(train.getNumber()) + "  ·  " + value(train.getType()));
+        ((TextView) row.findViewById(R.id.liveTrainName)).setText(value(train.getName()));
+        ((TextView) row.findViewById(R.id.liveTrainType)).setText("Train " + value(train.getNumber())
+                + (train.getType() == null || train.getType().trim().isEmpty() ? "" : "  ·  " + train.getType()));
         ((TextView) row.findViewById(R.id.liveTrainDeparture)).setText(value(train.getDeparture()));
         ((TextView) row.findViewById(R.id.liveTrainSource)).setText(label(train.getSource()));
         ((TextView) row.findViewById(R.id.liveTrainDepartureDay)).setText(day(train.getDepartureDay()));
@@ -44,8 +45,8 @@ public final class LiveTrainAdapter extends ArrayAdapter<LiveTrain> {
     private String details(LiveTrain train) {
         List<String> parts = new ArrayList<>();
         parts.add("Duration: " + duration(train.getDurationMinutes()));
-        parts.add("Distance: " + (train.getDistanceKm() == null ? "Not provided" : train.getDistanceKm() + " km"));
-        parts.add("Halts: " + value(train.getTotalHaltsBetween()));
+        if (train.getDistanceKm() != null) parts.add("Distance: " + train.getDistanceKm() + " km");
+        if (train.getTotalHaltsBetween() != null) parts.add("Halts: " + train.getTotalHaltsBetween());
         if (train.getRunDays() != null && !train.getRunDays().isEmpty()) {
             parts.add("Runs: " + android.text.TextUtils.join(", ", train.getRunDays()));
         }

@@ -7,12 +7,19 @@ import java.util.Locale;
 public final class SimulationRequest implements Serializable {
     private static final long serialVersionUID = 1L;
     private final String number, name, sourceCode, sourceName, destinationCode, destinationName, date, departure, arrival;
+    private final FareSnapshot fareSnapshot;
     private final TravelClass travelClass;
     private final Integer departureDay, arrivalDay;
 
     public SimulationRequest(String number, String name, String sourceCode, String sourceName,
             String destinationCode, String destinationName, String date, TravelClass travelClass,
             String departure, String arrival, Integer departureDay, Integer arrivalDay) {
+        this(number,name,sourceCode,sourceName,destinationCode,destinationName,date,travelClass,departure,arrival,departureDay,arrivalDay,null);
+    }
+    public SimulationRequest(String number, String name, String sourceCode, String sourceName,
+            String destinationCode, String destinationName, String date, TravelClass travelClass,
+            String departure, String arrival, Integer departureDay, Integer arrivalDay, FareSnapshot fareSnapshot) {
+        this.fareSnapshot = fareSnapshot;
         this.number = clean(number); this.name = clean(name);
         this.sourceCode = clean(sourceCode).toUpperCase(Locale.ROOT); this.sourceName = clean(sourceName);
         this.destinationCode = clean(destinationCode).toUpperCase(Locale.ROOT); this.destinationName = clean(destinationName);
@@ -21,6 +28,7 @@ public final class SimulationRequest implements Serializable {
         this.departureDay = departureDay; this.arrivalDay = arrivalDay;
     }
     private static String clean(String value) { return value == null ? "" : value.trim(); }
+    public FareSnapshot getFareSnapshot() { return fareSnapshot; }
     public String getNumber() { return number; }
     public String getName() { return name; }
     public String getSourceCode() { return sourceCode; }

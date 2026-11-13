@@ -41,8 +41,8 @@ public class SimulationScenarioMigrationTest {
                 old.setVersion(3);
             }
             SQLiteDatabase upgraded = f.helper.getWritableDatabase();
-            assertEquals(4, upgraded.getVersion());
-            for (String table : tables) assertEquals(originalSchemas.get(table), schema(upgraded, table));
+            assertEquals(6, upgraded.getVersion());
+            for (String table : tables) assertEquals(expanded(originalSchemas.get(table)), expanded(schema(upgraded, table)));
             assertEquals(0, DatabaseUtils.queryNumEntries(upgraded, "simulation_scenarios"));
             Booking paid = f.service.findBookingByPnr("1234567890");
             assertEquals("90001", paid.getTrainNumber());
@@ -60,4 +60,6 @@ public class SimulationScenarioMigrationTest {
     private String schema(SQLiteDatabase db, String table) {
         return DatabaseUtils.stringForQuery(db, "SELECT sql FROM sqlite_master WHERE type='table' AND name=?", new String[]{table});
     }
+    private String expanded(String sql) { return sql.replace("\"", "").replace("travel_class IN ('SL','3A')", "travel_class IN ('SL','3A','2A','1A','3E','CC','EC','2S')"); }
+
 }

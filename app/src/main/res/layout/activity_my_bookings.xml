@@ -1,173 +1,186 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/bookingsRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/surface_soft"
     android:orientation="vertical"
     android:padding="20dp">
-
-    <LinearLayout
+    <com.railreserve.ui.BoundedHeaderScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/hero_background"
-        android:elevation="2dp"
-        android:orientation="vertical"
-        android:padding="20dp">
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="RAILRESERVE  /  DEMO TICKETS"
-            android:textColor="#C3D9E6"
-            android:textSize="10sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.1" />
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:text="@string/my_demo_bookings_title"
-            android:textColor="@color/white"
-            android:textSize="26sp"
-            android:textStyle="bold" />
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="3dp"
-            android:text="@string/my_demo_bookings_description"
-            android:textColor="#D9E3F0"
-            android:textSize="13sp" />
-    </LinearLayout>
-
-    <ProgressBar
-        android:id="@+id/bookingsProgress"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginTop="18dp"
-        android:visibility="gone" />
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="14dp"
-        android:background="@drawable/card_background"
-        android:elevation="1dp"
-        android:orientation="vertical"
-        android:padding="12dp">
-
-        <EditText
-            android:id="@+id/bookingSearchInput"
-            android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:background="@drawable/booking_input_background"
-            android:hint="Search PNR, train, or station"
-            android:imeOptions="actionSearch"
-            android:inputType="text"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:singleLine="true"
-            android:textColor="@color/ink"
-            android:textColorHint="@color/muted"
-            android:textSize="14sp" />
-
+        android:fillViewport="false"
+        android:clipToPadding="false">
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:orientation="horizontal">
-
+            android:orientation="vertical">
             <LinearLayout
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="6dp"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
+                android:background="@drawable/hero_background"
+                android:elevation="2dp"
+                android:orientation="vertical"
+                android:padding="14dp">
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="4dp"
-                    android:text="STATUS"
-                    android:textColor="@color/muted"
-                    android:textSize="10sp"
-                    android:textStyle="bold" />
-
-                <Spinner
-                    android:id="@+id/bookingStatusSpinner"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:background="@drawable/booking_input_background"
-                    android:paddingStart="6dp"
-                    android:paddingEnd="6dp"
-                    android:spinnerMode="dropdown" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
+                    android:text="RAILRESERVE  /  DEMO TICKETS"
+                    android:textColor="#C3D9E6"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.1" />
                 <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="4dp"
-                    android:text="JOURNEY DATE"
-                    android:textColor="@color/muted"
-                    android:textSize="10sp"
-                    android:textStyle="bold" />
-
-                <Spinner
-                    android:id="@+id/bookingSortSpinner"
                     android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:background="@drawable/booking_input_background"
-                    android:paddingStart="6dp"
-                    android:paddingEnd="6dp"
-                    android:spinnerMode="dropdown" />
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/my_demo_bookings_title"
+                    android:textColor="@color/white"
+                    android:textSize="26sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="@string/my_demo_bookings_description"
+                    android:textColor="#D9E3F0"
+                    android:textSize="13sp" />
             </LinearLayout>
+            <ProgressBar
+                android:id="@+id/bookingsProgress"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="12dp"
+                android:visibility="gone" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:background="@drawable/card_background"
+                android:elevation="1dp"
+                android:orientation="vertical"
+                android:padding="12dp">
+                <EditText
+                    android:id="@+id/bookingSearchInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/booking_input_background"
+                    android:hint="Search PNR, train, or station"
+                    android:imeOptions="actionSearch"
+                    android:inputType="text"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:singleLine="true"
+                    android:textColor="@color/ink"
+                    android:textColorHint="@color/muted"
+                    android:textSize="14sp"
+                    android:minHeight="50dp"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:orientation="horizontal">
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="6dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="4dp"
+                            android:text="STATUS"
+                            android:textColor="@color/muted"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+                        <Spinner
+                            android:id="@+id/bookingStatusSpinner"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/booking_input_background"
+                            android:paddingStart="6dp"
+                            android:paddingEnd="6dp"
+                            android:spinnerMode="dropdown"
+                            android:minHeight="48dp" />
+                    </LinearLayout>
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="4dp"
+                            android:text="JOURNEY DATE"
+                            android:textColor="@color/muted"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+                        <Spinner
+                            android:id="@+id/bookingSortSpinner"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/booking_input_background"
+                            android:paddingStart="6dp"
+                            android:paddingEnd="6dp"
+                            android:spinnerMode="dropdown"
+                            android:minHeight="48dp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+            <TextView
+                android:id="@+id/bookingsStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/card_background"
+                android:gravity="center"
+                android:minHeight="130dp"
+                android:padding="22dp"
+                android:textColor="@color/muted"
+                android:textSize="15sp"
+                android:visibility="gone"
+                android:accessibilityLiveRegion="polite" />
+            <Button
+                android:id="@+id/emptySearchButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/button_primary"
+                android:minHeight="52dp"
+                android:text="@string/return_to_tickets"
+                android:textAllCaps="false"
+                android:textColor="@color/white"
+                android:textStyle="bold"
+                android:visibility="gone"
+                app:backgroundTint="@null"
+                android:backgroundTint="@null"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp" />
+            <Button
+                android:id="@+id/bookingsRetry"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/button_secondary"
+                android:text="@string/retry"
+                android:textAllCaps="false"
+                android:textColor="@color/brand_dark"
+                android:visibility="gone"
+                android:minHeight="50dp"
+                app:backgroundTint="@null"
+                android:backgroundTint="@null"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp" />
         </LinearLayout>
-    </LinearLayout>
-
-    <TextView
-        android:id="@+id/bookingsStatus"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="18dp"
-        android:background="@drawable/card_background"
-        android:gravity="center"
-        android:minHeight="130dp"
-        android:padding="22dp"
-        android:textColor="@color/muted"
-        android:textSize="15sp"
-        android:visibility="gone" />
-
-    <Button
-        android:id="@+id/emptySearchButton"
-        android:layout_width="match_parent"
-        android:layout_height="52dp"
-        android:layout_marginTop="10dp"
-        android:background="@drawable/button_primary"
-        android:minHeight="48dp"
-        android:text="@string/return_to_tickets"
-        android:textAllCaps="false"
-        android:textColor="@color/white"
-        android:textStyle="bold"
-        android:visibility="gone" />
-
-    <Button
-        android:id="@+id/bookingsRetry"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:layout_marginTop="10dp"
-        android:background="@drawable/button_secondary"
-        android:text="@string/retry"
-        android:textAllCaps="false"
-        android:textColor="@color/brand_dark"
-        android:visibility="gone" />
-
+    </com.railreserve.ui.BoundedHeaderScrollView>
     <ListView
         android:id="@+id/bookingsList"
         android:layout_width="match_parent"

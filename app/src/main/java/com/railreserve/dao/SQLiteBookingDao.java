@@ -36,9 +36,18 @@ public final class SQLiteBookingDao implements BookingDao {
         SQLiteDatabase db = helper.getWritableDatabase();
         db.beginTransaction();
         try {
+            if (request.getFareSnapshot() != null && (request.getCheckoutReference() == null || request.getExpectedAmountPaise() == null
+                    || request.getExpectedAmountPaise() != request.getFareSnapshot().getAmountPaise())) throw new IllegalArgumentException("A reviewed provider quote and checkout are required.");
             if (request.getCheckoutReference() != null) {
                 Booking existing = findCheckout(db, request.getCheckoutReference());
                 if (existing != null) {
+                    if (request.getFareSnapshot() != null) {
+                        com.railreserve.model.FareSnapshot saved = existing.getFareSnapshot(), supplied = request.getFareSnapshot();
+                        if (saved == null || saved.getAmountPaise() != supplied.getAmountPaise()
+                                || !saved.getRetrievedAt().equals(supplied.getRetrievedAt()))
+                            throw new IllegalArgumentException("This checkout already belongs to another captured quote.");
+                        supplied.requireContext(saved.getNumber(),saved.getFrom(),saved.getTo(),saved.getDate(),saved.getClassCode(),saved.getQuota());
+                    }
                     if (!"CONFIRMED".equals(existing.getStatus())) {
                         throw new IllegalStateException("This checkout was already cancelled. Start a new reservation.");
                     }
@@ -48,6 +57,7 @@ public final class SQLiteBookingDao implements BookingDao {
             }
             // One shared allocation implementation for legacy requests and the new checkout.
             Booking booking = insertBooking(db, request);
+            if (request.getFareSnapshot() != null) FareSnapshotStore.insert(db, booking.getId(), request.getFareSnapshot());
             if (request.getCheckoutReference() != null) {
                 long amountPaise = Math.multiplyExact((long) booking.getFare(), 100L);
                 if (request.getExpectedAmountPaise() == null || request.getExpectedAmountPaise() != amountPaise) {
@@ -83,6 +93,13 @@ public final class SQLiteBookingDao implements BookingDao {
             journeyId = c.getLong(0); clazz = c.getString(1); fare = c.getInt(2);
         }
         if (!clazz.equals(request.getTravelClass().getCode())) throw new IllegalStateException("That seat is not in the selected class.");
+        if (request.getFareSnapshot() != null) {
+            try (Cursor context = db.rawQuery("SELECT sc.display_train_number,sc.source_code,sc.destination_code,j.journey_date,sc.travel_class FROM journeys j JOIN simulation_scenarios sc ON sc.train_id=j.train_id WHERE j.journey_id=?", new String[]{Long.toString(journeyId)})) {
+                if (!context.moveToFirst()) throw new IllegalArgumentException("Provider quotes can only price selected-train simulations.");
+                request.getFareSnapshot().requireContext(context.getString(0),context.getString(1),context.getString(2),context.getString(3),context.getString(4),"GN");
+                fare = request.getFareSnapshot().getFareRupees();
+            }
+        }
         ContentValues seatUpdate = new ContentValues();
         seatUpdate.put("status", "BOOKED");
         int changed = db.update("seats", seatUpdate,
@@ -114,8 +131,9 @@ public final class SQLiteBookingDao implements BookingDao {
 
     @Override public List<Booking> getBookings() {
         List<Booking> bookings = new ArrayList<>();
-        try (Cursor c = helper.getReadableDatabase().rawQuery(bookingSelect() + " ORDER BY b.booked_at DESC,b.booking_id DESC", null)) {
-            while (c.moveToNext()) bookings.add(readBooking(c));
+        SQLiteDatabase db = helper.getReadableDatabase();
+        try (Cursor c = db.rawQuery(bookingSelect() + " ORDER BY b.booked_at DESC,b.booking_id DESC", null)) {
+            while (c.moveToNext()) bookings.add(readBooking(db, c));
         }
         return bookings;
     }
@@ -132,7 +150,7 @@ public final class SQLiteBookingDao implements BookingDao {
 
     private Booking find(SQLiteDatabase db, String where, String value) {
         try (Cursor c = db.rawQuery(bookingSelect() + " WHERE " + where, new String[]{value})) {
-            return c.moveToFirst() ? readBooking(c) : null;
+            return c.moveToFirst() ? readBooking(db, c) : null;
         }
     }
 
@@ -167,17 +185,17 @@ public final class SQLiteBookingDao implements BookingDao {
     private Booking readBooking(SQLiteDatabase db, String where, String[] args) {
         try (Cursor c = db.rawQuery(bookingSelect() + " WHERE " + where, args)) {
             if (!c.moveToFirst()) throw new IllegalStateException("Saved booking could not be loaded.");
-            return readBooking(c);
+            return readBooking(db, c);
         }
     }
 
-    private Booking readBooking(Cursor c) {
+    private Booking readBooking(SQLiteDatabase db, Cursor c) {
         DemoPayment payment = c.isNull(22) ? null : new DemoPayment(c.getString(22), c.getString(23), c.getLong(0),
                 c.getLong(24), c.getString(25), c.getString(26), c.getString(27), c.isNull(28) ? null : c.getString(28));
         return new Booking(c.getLong(0),c.getString(1),c.getLong(2),c.getLong(3),c.getString(4),c.getString(5),c.getString(6),
                 c.getString(7),c.getString(8),c.getString(9),c.getString(10),c.getInt(11),c.getString(12),c.getInt(13),
                 c.getString(14),c.getString(15),c.getInt(16),TravelClass.fromCode(c.getString(17)),c.getInt(18),
-                c.getString(19),c.getString(20),c.isNull(21)?null:c.getString(21),payment);
+                c.getString(19),c.getString(20),c.isNull(21)?null:c.getString(21),payment,FareSnapshotStore.read(db, c.getLong(0)));
     }
 
     private String bookingSelect() {

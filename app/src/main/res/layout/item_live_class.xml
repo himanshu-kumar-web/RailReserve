@@ -1,27 +1,116 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="wrap_content"
-    android:layout_marginTop="12dp" android:orientation="vertical" android:padding="16dp"
+<LinearLayout
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="12dp"
+    android:orientation="vertical"
+    android:padding="14dp"
     android:background="@drawable/live_search_card">
-    <TextView android:id="@+id/classHeading" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:textColor="@color/ink" android:textSize="19sp" android:textStyle="bold" />
-    <TextView android:id="@+id/classSource" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:layout_marginTop="4dp" android:textColor="@color/muted" android:textSize="13sp" />
-    <ProgressBar android:id="@+id/classProgress" style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="match_parent" android:layout_height="wrap_content" android:indeterminate="true" android:visibility="gone" />
-    <TextView android:id="@+id/classFare" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:layout_marginTop="10dp" android:textColor="@color/brand_dark" android:textSize="14sp" android:accessibilityLiveRegion="polite" />
-    <Button android:id="@+id/classFareCheck" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:minHeight="48dp" android:text="@string/check_provider_fare" android:textAllCaps="false"
-        android:background="@drawable/button_secondary" android:textColor="@color/brand_dark" />
-    <TextView android:id="@+id/classAvailability" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:layout_marginTop="8dp" android:textColor="@color/muted" android:textSize="14sp" android:accessibilityLiveRegion="polite" />
-    <Button android:id="@+id/classAvailabilityCheck" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:minHeight="48dp" android:text="@string/check_provider_availability" android:textAllCaps="false"
-        android:background="@drawable/button_secondary" android:textColor="@color/brand_dark" />
-    <TextView android:id="@+id/classDemoNotice" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:layout_marginTop="12dp" android:textColor="@color/muted" android:textSize="14sp" />
-    <Button android:id="@+id/classDemoBook" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:minHeight="52dp" android:layout_marginTop="8dp" android:text="@string/simulate_booking"
-        android:textAllCaps="false" android:background="@drawable/button_primary" android:textColor="@color/white" android:textSize="16sp" />
+    <TextView
+        android:id="@+id/classHeading"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/ink"
+        android:textSize="17sp"
+        android:textStyle="bold"
+        android:textAppearance="@style/TextAppearance.RailReserve.Section" />
+    <TextView
+        android:id="@+id/classSource"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textColor="@color/muted"
+        android:textSize="13sp" />
+    <ProgressBar
+        android:id="@+id/classProgress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:indeterminate="true"
+        android:visibility="gone" />
+    <TextView
+        android:id="@+id/classFare"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:textColor="@color/brand_dark"
+        android:textSize="14sp"
+        android:accessibilityLiveRegion="polite"
+        android:lineSpacingExtra="2dp" />
+    <TextView
+        android:id="@+id/classAvailability"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:textColor="@color/muted"
+        android:textSize="14sp"
+        android:accessibilityLiveRegion="polite"
+        android:lineSpacingExtra="2dp" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="10dp">
+        <Button
+            android:id="@+id/classFareCheck"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="@string/check_provider_fare"
+            android:textAllCaps="false"
+            android:background="@drawable/button_secondary"
+            app:backgroundTint="@null"
+            android:backgroundTint="@null"
+            android:textColor="@color/brand_dark"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:layout_weight="1"
+            android:textSize="13sp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:layout_marginEnd="4dp" />
+        <Button
+            android:id="@+id/classAvailabilityCheck"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="@string/check_provider_availability"
+            android:textAllCaps="false"
+            android:background="@drawable/button_secondary"
+            app:backgroundTint="@null"
+            android:backgroundTint="@null"
+            android:textColor="@color/brand_dark"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:layout_weight="1"
+            android:textSize="13sp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:layout_marginStart="4dp" />
+    </LinearLayout>
+    <TextView
+        android:id="@+id/classDemoNotice"
+        android:accessibilityLiveRegion="polite"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:textColor="@color/muted"
+        android:textSize="12sp" />
+    <Button
+        android:id="@+id/classDemoBook"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
+        android:layout_marginTop="8dp"
+        android:text="@string/simulate_booking"
+        android:textAllCaps="false"
+        android:background="@drawable/button_primary"
+        app:backgroundTint="@null"
+        android:textColor="@color/white"
+        android:textSize="14sp"
+        android:backgroundTint="@null"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp" />
 </LinearLayout>

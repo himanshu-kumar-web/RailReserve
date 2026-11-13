@@ -10,6 +10,7 @@ import android.widget.TextView;
 import com.railreserve.R;
 import com.railreserve.model.Booking;
 import com.railreserve.ui.PaymentReceiptText;
+import com.railreserve.ui.TicketUi;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,6 +23,7 @@ public final class BookingAdapter extends BaseAdapter {
     private final List<Booking> bookings = new ArrayList<>();
     private final CancelListener listener;
     private boolean cancellationInProgress;
+    private final java.util.Set<Long> expandedReceipts = new java.util.HashSet<>();
 
     public BookingAdapter(Context context, CancelListener listener) {
         inflater = LayoutInflater.from(context);
@@ -52,7 +54,16 @@ public final class BookingAdapter extends BaseAdapter {
         ((TextView) view.findViewById(R.id.bookingPayment)).setText(PaymentReceiptText.receipt(booking));
         boolean confirmed = "CONFIRMED".equals(booking.getStatus());
 
-        ((TextView) view.findViewById(R.id.bookingPnr)).setText("DEMO PNR   " + booking.getPnr());
+        ((TextView) view.findViewById(R.id.bookingPnr)).setText("DEMO PNR\n" + booking.getPnr());
+        TicketUi.bindCopy(view,booking.getPnr());
+        boolean expanded = expandedReceipts.contains(booking.getId());
+        view.findViewById(R.id.bookingPayment).setVisibility(expanded ? View.VISIBLE : View.GONE);
+        Button receipt = view.findViewById(R.id.bookingReceiptToggle);
+        receipt.setText(expanded ? R.string.hide_receipt : R.string.show_receipt);
+        receipt.setOnClickListener(clicked -> {
+            if (!expandedReceipts.remove(booking.getId())) expandedReceipts.add(booking.getId());
+            notifyDataSetChanged();
+        });
         ((TextView) view.findViewById(R.id.bookingTrain)).setText(
                 "Train " + booking.getTrainNumber() + "  |  " + booking.getTrainName());
         ((TextView) view.findViewById(R.id.bookingRoute)).setText(
@@ -64,10 +75,10 @@ public final class BookingAdapter extends BaseAdapter {
                 "Passenger  |  " + booking.getPassengerName() + ", age " + booking.getAge());
         ((TextView) view.findViewById(R.id.bookingClassFare)).setText(
                 booking.getTravelClass().getLabel() + "  |  " + booking.getCoach() + " Seat "
-                        + booking.getSeatNumber() + "  |  Demo fare \u20B9 " + booking.getFare());
+                        + booking.getSeatNumber() + (booking.getFareSnapshot() == null ? " | Local demo fare " : " | Captured estimate ") + PaymentReceiptText.amount(booking.getFare()*100L));
 
         TextView status = view.findViewById(R.id.bookingStatus);
-        status.setText(booking.getStatus());
+        status.setText("Local demo: " + booking.getStatus());
         status.setBackgroundResource(confirmed ? R.drawable.status_confirmed : R.drawable.status_cancelled);
         status.setTextColor(confirmed ? 0xff20624e : 0xff9a3e31);
 

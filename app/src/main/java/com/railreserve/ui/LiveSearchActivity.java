@@ -407,5 +407,7 @@ public final class LiveSearchActivity extends AppCompatActivity {
         input.status.setText(message);
         input.status.setClickable(retryable);
         input.status.setFocusable(retryable);
+        input.status.setMinHeight(retryable ? (int) (48 * getResources().getDisplayMetrics().density) : 0);
+        input.status.setTextColor(getColor(retryable ? R.color.brand_dark : R.color.muted));
     }
 }

@@ -56,7 +56,7 @@ public final class BookingSubmissionViewModel extends ViewModel {
                 }
                 draft = new BookingRequest(bundle.getLong("journey"), bundle.getLong("seat"),
                         TravelClass.fromCode(bundle.getString("class")), bundle.getString("name"),
-                        bundle.getInt("age"), bundle.getString("gender"), bundle.getString("reference"), bundle.getLong("amount"));
+                        bundle.getInt("age"), bundle.getString("gender"), bundle.getString("reference"), bundle.getLong("amount"), (com.railreserve.model.FareSnapshot) bundle.getSerializable("fareSnapshot"));
                 state.setValue(new State(Stage.RECOVERING, null, null));
             } catch (RuntimeException exception) { draft = null; saved.remove("demoCheckoutDraft"); saved.remove("demoCheckoutSummary"); }
         }
@@ -71,13 +71,21 @@ public final class BookingSubmissionViewModel extends ViewModel {
         State current = state.getValue();
         if (current != null && (current.isSaving() || current.getBooking() != null)) return;
         if (amountPaise < 0) throw new IllegalArgumentException("Invalid demo fare.");
+        if (request.getFareSnapshot() != null) {
+            request.getFareSnapshot().requireFresh();
+            if (amountPaise != request.getFareSnapshot().getAmountPaise() || request.getTravelClass() == null
+                    || !request.getTravelClass().getCode().equals(request.getFareSnapshot().getClassCode()))
+                throw new IllegalArgumentException("Review the matching class and captured provider fare before payment.");
+        }
+        // Once reviewed, this immutable amount belongs to the local checkout, including retries/recovery.
         draft = new BookingRequest(request.getJourneyId(), request.getSeatId(), request.getTravelClass(),
-                request.getPassengerName(), request.getAge(), request.getGender(), "DEMO-CHK-" + UUID.randomUUID(), amountPaise);
+                request.getPassengerName(), request.getAge(), request.getGender(), "DEMO-CHK-" + UUID.randomUUID(), amountPaise, request.getFareSnapshot());
         Bundle bundle = new Bundle();
         bundle.putLong("journey", draft.getJourneyId()); bundle.putLong("seat", draft.getSeatId());
         bundle.putString("class", draft.getTravelClass().getCode()); bundle.putString("name", draft.getPassengerName());
         bundle.putInt("age", draft.getAge()); bundle.putString("gender", draft.getGender());
         bundle.putString("reference", draft.getCheckoutReference()); bundle.putLong("amount", amountPaise);
+        bundle.putSerializable("fareSnapshot", draft.getFareSnapshot());
         saved.set("demoCheckoutDraft", bundle); saved.set("demoCheckoutSummary", summary);
         state.setValue(new State(Stage.REVIEW, null, null));
     }

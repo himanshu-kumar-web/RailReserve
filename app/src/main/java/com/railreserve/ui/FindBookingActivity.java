@@ -126,9 +126,10 @@ public final class FindBookingActivity extends AppCompatActivity {
 
     private void showBooking(Booking booking) {
         ((TextView) findViewById(R.id.lookupPayment)).setText(PaymentReceiptText.receipt(booking));
-        resultPnr.setText("DEMO PNR  " + booking.getPnr());
+        resultPnr.setText("DEMO PNR\n" + booking.getPnr());
+        TicketUi.bindCopy(resultCard,booking.getPnr());
         boolean cancelled = "CANCELLED".equalsIgnoreCase(booking.getStatus());
-        resultStatus.setText(cancelled ? "CANCELLED" : booking.getStatus());
+        resultStatus.setText("Local demo: " + booking.getStatus());
         resultStatus.setBackgroundResource(cancelled ? R.drawable.status_cancelled : R.drawable.status_confirmed);
         train.setText(booking.getTrainName() + "  ·  " + booking.getTrainNumber());
         route.setText(booking.getSource() + "  →  " + booking.getDestination());
@@ -137,7 +138,7 @@ public final class FindBookingActivity extends AppCompatActivity {
                 + (booking.getArrivalDayOffset() > 0 ? " (next day)" : ""));
         passenger.setText(booking.getPassengerName() + "  ·  " + booking.getAge() + " years  ·  " + booking.getGender());
         seat.setText(booking.getTravelClass().getLabel() + "  ·  " + booking.getCoach() + " " + booking.getSeatNumber());
-        fare.setText("Demo fare: " + PaymentReceiptText.amount(Math.multiplyExact((long) booking.getFare(), 100L)));
+        fare.setText((booking.getFareSnapshot() == null ? "Local demo fare: " : "Captured estimate: ") + PaymentReceiptText.amount(Math.multiplyExact((long) booking.getFare(), 100L)));
         cancelledNote.setVisibility(cancelled ? View.VISIBLE : View.GONE);
         resultCard.setVisibility(View.VISIBLE);
     }

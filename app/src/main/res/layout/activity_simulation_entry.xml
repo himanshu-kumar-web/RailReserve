@@ -1,25 +1,89 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/simulationEntryRoot" android:layout_width="match_parent" android:layout_height="match_parent"
-    android:background="@color/surface_soft" android:fillViewport="true" android:paddingHorizontal="20dp">
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="@string/simulation_mode_notice" android:background="@color/teal_soft" android:padding="16dp"
-            android:textColor="@color/brand_dark" android:textSize="16sp" android:textStyle="bold" />
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp"
-            android:text="@string/simulation_policy" android:textColor="@color/ink" android:textSize="15sp" />
-        <ProgressBar android:id="@+id/simulationEntryProgress" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal" android:layout_marginTop="20dp" />
-        <TextView android:id="@+id/simulationEntryStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="16dp" android:accessibilityLiveRegion="polite" android:textColor="@color/ink" android:textSize="15sp" />
-        <Button android:id="@+id/simulationEntryRetry" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:minHeight="50dp" android:layout_marginTop="16dp" android:text="@string/retry" android:textAllCaps="false"
-            android:background="@drawable/button_primary" android:textColor="@color/white" android:visibility="gone" />
-        <Button android:id="@+id/simulationEntryBack" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:minHeight="50dp" android:layout_marginTop="12dp" android:text="@string/simulation_back" android:textAllCaps="false"
-            android:background="@drawable/button_secondary" android:textColor="@color/brand_dark" />
-        <Button android:id="@+id/simulationEntryDemoFallback" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:minHeight="50dp" android:layout_marginTop="12dp" android:text="@string/tickets_demo_flow" android:textAllCaps="false"
-            android:background="@drawable/button_secondary" android:textColor="@color/brand_dark" />
+<ScrollView
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/simulationEntryRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface_soft"
+    android:fillViewport="true"
+    android:paddingHorizontal="20dp">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/simulation_mode_notice"
+            android:background="@color/teal_soft"
+            android:padding="16dp"
+            android:textColor="@color/brand_dark"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/quoted_simulation_policy"
+            android:textColor="@color/ink"
+            android:textSize="15sp" />
+        <ProgressBar
+            android:id="@+id/simulationEntryProgress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="20dp" />
+        <TextView
+            android:id="@+id/simulationEntryStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:accessibilityLiveRegion="polite"
+            android:textColor="@color/ink"
+            android:textSize="15sp" />
+        <Button
+            android:id="@+id/simulationEntryRetry"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="50dp"
+            android:layout_marginTop="16dp"
+            android:text="@string/retry"
+            android:textAllCaps="false"
+            android:background="@drawable/button_primary"
+            android:textColor="@color/white"
+            android:visibility="gone"
+            app:backgroundTint="@null"
+            android:backgroundTint="@null"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp" />
+        <Button
+            android:id="@+id/simulationEntryBack"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="50dp"
+            android:layout_marginTop="12dp"
+            android:text="@string/simulation_back"
+            android:textAllCaps="false"
+            android:background="@drawable/button_secondary"
+            android:textColor="@color/brand_dark"
+            app:backgroundTint="@null"
+            android:backgroundTint="@null"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp" />
+        <Button
+            android:id="@+id/simulationEntryDemoFallback"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="50dp"
+            android:layout_marginTop="12dp"
+            android:text="@string/tickets_demo_flow"
+            android:textAllCaps="false"
+            android:background="@drawable/button_secondary"
+            android:textColor="@color/brand_dark"
+            app:backgroundTint="@null"
+            android:backgroundTint="@null"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp" />
     </LinearLayout>
 </ScrollView>

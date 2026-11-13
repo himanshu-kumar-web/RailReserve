@@ -63,7 +63,7 @@ public class TrainDetailsDeviceTest {
                 for (String code : offered) {
                     View card = cards.findViewWithTag(code); assertNotNull(card);
                     assertTrue(((TextView) card.findViewById(R.id.classSource)).getText().toString().contains("RailCore route search"));
-                    assertEquals(LiveClassCatalog.supportsDemo(code), card.findViewById(R.id.classDemoBook).isEnabled());
+                    assertFalse(card.findViewById(R.id.classDemoBook).isEnabled());
                     if (!BuildConfig.LIVE_FARE_ENABLED) assertEquals(View.GONE, card.findViewById(R.id.classFareCheck).getVisibility());
                 }
                 return null;
@@ -96,7 +96,7 @@ public class TrainDetailsDeviceTest {
         waitFor(() -> unknown.findViewById(R.id.detailsProgress).getVisibility() == View.GONE);
         main(() -> {
             assertEquals(0, ((LinearLayout) unknown.findViewById(R.id.detailsClasses)).getChildCount());
-            assertEquals(2, ((LinearLayout) unknown.findViewById(R.id.detailsDemoOnlyClasses)).getChildCount());
+            assertEquals(1, ((LinearLayout) unknown.findViewById(R.id.detailsDemoOnlyClasses)).getChildCount());
             assertEquals(View.VISIBLE, unknown.findViewById(R.id.detailsDemoOnlyNotice).getVisibility()); return null;
         });
         Activity empty = start(detailsIntent("90313", new String[]{}, 1));
@@ -134,19 +134,19 @@ public class TrainDetailsDeviceTest {
 
     @Test public void enabledFixtureChecksKeepProvenanceRejectDuplicatesAndExpire() throws Exception {
         assumeTrue(BuildConfig.LIVE_FARE_ENABLED && BuildConfig.LIVE_AVAILABILITY_ENABLED);
-        server.handler = path -> new LocalBackendFixture.Response(200, path.contains("/fare")
-                ? "{\"success\":true,\"data\":{\"fareKnown\":true,\"totalFare\":875.5,\"providerSource\":\"TEST FIXTURE authorized fare\",\"retrievedAt\":\"2026-11-12T10:00:00Z\"}}"
-                : path.contains("/availability") ? availability(LocalDate.now().toString()) : schedule("90316", new String[]{"3A"}));
+        server.handler = path -> new LocalBackendFixture.Response(200,path.contains("/fare") || path.contains("/availability")
+                ? LocalBackendFixture.enquiry("90316","AAA","BBB",LocalDate.now().toString(),"3A",path.contains("/fare"),245.0)
+                : schedule("90316",new String[]{"3A"}));
         try (ActivityScenario<TrainDetailsActivity> scenario = ActivityScenario.launch(detailsIntent("90316", new String[]{"3A"}, 1))) {
             AtomicReference<TrainDetailsActivity> current = new AtomicReference<>(); scenario.onActivity(current::set);
             waitFor(() -> current.get().findViewById(R.id.detailsProgress).getVisibility() == View.GONE);
             scenario.onActivity(activity -> { View card = card(activity); card.findViewById(R.id.classFareCheck).performClick(); card.findViewById(R.id.classFareCheck).performClick();
                 card.findViewById(R.id.classAvailabilityCheck).performClick(); card.findViewById(R.id.classAvailabilityCheck).performClick(); });
-            waitFor(() -> ((TextView) card(current.get()).findViewById(R.id.classAvailability)).getText().toString().contains("TEST FIXTURE"));
+            waitFor(() -> ((TextView) card(current.get()).findViewById(R.id.classAvailability)).getText().toString().contains("RailCore availability"));
             scenario.recreate(); scenario.onActivity(current::set);
             assertEquals(1, server.paths.stream().filter(path -> path.contains("/fare")).count());
             assertEquals(1, server.paths.stream().filter(path -> path.contains("/availability")).count());
-            assertTrue(main(() -> ((TextView) card(current.get()).findViewById(R.id.classFare)).getText().toString()).contains("875.50"));
+            assertTrue(main(() -> ((TextView) card(current.get()).findViewById(R.id.classFare)).getText().toString()).contains("245.00"));
             // Advance retained result expiry without waiting a minute or changing the phone clock.
             java.lang.reflect.Field field = TrainDetailsViewModel.class.getDeclaredField("checks"); field.setAccessible(true);
             main(() -> {
@@ -156,15 +156,20 @@ public class TrainDetailsDeviceTest {
                 } catch (Exception e) { throw new AssertionError(e); } return null;
             });
             scenario.recreate(); scenario.onActivity(current::set);
-            assertTrue(main(() -> ((TextView) card(current.get()).findViewById(R.id.classAvailability)).getText().toString()).contains("not checked"));
-            assertEquals(3, server.requests.get());
+            assertTrue(main(() -> ((TextView) card(current.get()).findViewById(R.id.classAvailability)).getText().toString()).contains("expired"));
+            scenario.onActivity(activity -> card(activity).findViewById(R.id.classFareCheck).performClick());
+            waitFor(() -> card(current.get()).findViewById(R.id.classDemoBook).isEnabled());
+            assertEquals(4, server.requests.get());
+            assertEquals(1,server.paths.stream().filter(path -> path.contains("/availability")).count());
         }
     }
 
     @Test public void enabledFixtureMissingFareAndWrongDateRemainRetryable() throws Exception {
         assumeTrue(BuildConfig.LIVE_FARE_ENABLED && BuildConfig.LIVE_AVAILABILITY_ENABLED);
-        server.handler = path -> new LocalBackendFixture.Response(200, path.contains("/fare") ? "{\"success\":true,\"data\":{\"fareKnown\":false,\"totalFare\":null}}"
-                : path.contains("/availability") ? availability(LocalDate.now().plusDays(1).toString()) : schedule("90317", new String[]{"3A"}));
+        server.handler = path -> new LocalBackendFixture.Response(200,path.contains("/fare")
+                ? LocalBackendFixture.enquiry("90317","AAA","BBB",LocalDate.now().toString(),"3A",true,null)
+                : path.contains("/availability") ? LocalBackendFixture.enquiry("90317","AAA","BBB",LocalDate.now().plusDays(1).toString(),"3A",false,null)
+                : schedule("90317",new String[]{"3A"}));
         Activity details = start(detailsIntent("90317", new String[]{"3A"}, 1));
         waitFor(() -> details.findViewById(R.id.detailsProgress).getVisibility() == View.GONE);
         main(() -> { card(details).findViewById(R.id.classFareCheck).performClick(); card(details).findViewById(R.id.classAvailabilityCheck).performClick(); return null; });
@@ -173,10 +178,122 @@ public class TrainDetailsDeviceTest {
         server.handler = path -> new LocalBackendFixture.Response(503, "invalid");
         main(() -> { card(details).findViewById(R.id.classAvailabilityCheck).performClick(); return null; });
         waitFor(() -> ((TextView) card(details).findViewById(R.id.classAvailability)).getText().toString().contains("temporarily unavailable"));
-        server.handler = path -> new LocalBackendFixture.Response(200, availability(LocalDate.now().toString()));
+        server.handler = path -> new LocalBackendFixture.Response(200,LocalBackendFixture.enquiry("90317","AAA","BBB",LocalDate.now().toString(),"3A",false,null));
         main(() -> { card(details).findViewById(R.id.classAvailabilityCheck).performClick(); return null; });
-        waitFor(() -> ((TextView) card(details).findViewById(R.id.classAvailability)).getText().toString().contains("TEST FIXTURE"));
+        waitFor(() -> ((TextView) card(details).findViewById(R.id.classAvailability)).getText().toString().contains("RailCore availability"));
         assertEquals(View.GONE, (int) main(() -> card(details).findViewById(R.id.classProgress).getVisibility()));
+    }
+
+    @Test public void mismatchedQuoteCannotEnableBookingAndProviderStatusesRemainExact() throws Exception {
+        assumeTrue(BuildConfig.LIVE_FARE_ENABLED && BuildConfig.LIVE_AVAILABILITY_ENABLED);
+        server.handler=path->new LocalBackendFixture.Response(200,path.contains("/fare")
+                ? LocalBackendFixture.enquiry("99999","AAA","BBB",LocalDate.now().toString(),"3A",true,245.0)
+                : schedule("90320",new String[]{"3A"}));
+        Activity details=start(detailsIntent("90320",new String[]{"3A"},1));
+        waitFor(()->details.findViewById(R.id.detailsProgress).getVisibility()==View.GONE);
+        main(()->{ card(details).findViewById(R.id.classFareCheck).performClick(); return null; });
+        waitFor(()->((TextView)card(details).findViewById(R.id.classFare)).getText().toString().contains("did not match"));
+        assertFalse(main(()->card(details).findViewById(R.id.classDemoBook).isEnabled()));
+        server.handler=path->new LocalBackendFixture.Response(200,LocalBackendFixture.enquiry("90320","AAA","BBB",LocalDate.now().toString(),"3A",true,245.0));
+        main(()->{ card(details).findViewById(R.id.classFareCheck).performClick(); return null; });
+        waitFor(()->card(details).findViewById(R.id.classDemoBook).isEnabled());
+        for(String[] value:new String[][]{{"AVAILABLE 9","AVAILABLE"},{"RAC 12","RAC"},{"GNWL107/WL62","WAITLIST"},{"NOT AVAILABLE","UNKNOWN"}}) {
+            server.handler=path->{
+                try { JSONObject body=new JSONObject(LocalBackendFixture.enquiry("90320","AAA","BBB",LocalDate.now().toString(),"3A",false,null));
+                    body.getJSONObject("data").put("availabilityStatus",value[0]).put("statusType",value[1]); return new LocalBackendFixture.Response(200,body.toString());
+                } catch(Exception e) { throw new AssertionError(e); }
+            };
+            main(()->{ card(details).findViewById(R.id.classAvailabilityCheck).performClick(); return null; });
+            waitFor(()->((TextView)card(details).findViewById(R.id.classAvailability)).getText().toString().contains(value[0]));
+            assertTrue(main(()->((TextView)card(details).findViewById(R.id.classAvailability)).getText().toString()).contains("Status: "+value[1]));
+        }
+    }
+
+    @Test public void slowClassEnquiriesStayOnTheirOwnCardsAcrossRotation() throws Exception {
+        assumeTrue(BuildConfig.LIVE_FARE_ENABLED && BuildConfig.LIVE_AVAILABILITY_ENABLED);
+        server.handler=path->new LocalBackendFixture.Response(200,path.contains("/fare")
+                ? LocalBackendFixture.enquiry("90321","AAA","BBB",LocalDate.now().toString(),path.contains("classCode=SL") ? "SL" : "3A",true,path.contains("classCode=SL") ? 245.0 : 515.0)
+                : schedule("90321",new String[]{"SL","3A"}),path.contains("classCode=SL") ? 700 : 0);
+        try(ActivityScenario<TrainDetailsActivity> scenario=ActivityScenario.launch(detailsIntent("90321",new String[]{"SL","3A"},1))) {
+            AtomicReference<TrainDetailsActivity> current=new AtomicReference<>(); scenario.onActivity(current::set);
+            scenario.onActivity(activity->{
+                activity.findViewById(R.id.detailsClasses).findViewWithTag("SL").findViewById(R.id.classFareCheck).performClick();
+                activity.findViewById(R.id.detailsClasses).findViewWithTag("3A").findViewById(R.id.classFareCheck).performClick();
+            });
+            scenario.recreate(); scenario.onActivity(current::set);
+            waitFor(()->current.get().findViewById(R.id.detailsClasses).findViewWithTag("3A").findViewById(R.id.classDemoBook).isEnabled());
+            for(String[] item:new String[][]{{"SL","245.00"},{"3A","515.00"}}) {
+                assertTrue(main(()->((TextView)current.get().findViewById(R.id.detailsClasses).findViewWithTag(item[0]).findViewById(R.id.classFare)).getText().toString()).contains(item[1]));
+            }
+            assertEquals(2,server.paths.stream().filter(path->path.contains("/fare")).count());
+        }
+    }
+
+    @Test public void everyVerifiedClassHandsItsExactFareToPassengerEntryWithoutAvailability() throws Exception {
+        assumeTrue(BuildConfig.LIVE_FARE_ENABLED);
+        String[] classes={"SL","3A","2A","1A","3E","CC","EC","2S"};
+        server.handler=path->{
+            String code="";
+            for(String candidate:classes) if(path.contains("classCode="+candidate+"&") || path.endsWith("classCode="+candidate)) code=candidate;
+            return new LocalBackendFixture.Response(200,path.contains("/fare")
+                    ? LocalBackendFixture.enquiry("90330","AAA","BBB",LocalDate.now().toString(),code,true,875.0)
+                    : schedule("90330",classes));
+        };
+        Activity details=start(detailsIntent("90330",classes,1));
+        waitFor(()->details.findViewById(R.id.detailsProgress).getVisibility()==View.GONE);
+        for(String code:classes) {
+            View card=main(()->details.findViewById(R.id.detailsClasses).findViewWithTag(code));
+            main(()->{ assertFalse(card.findViewById(R.id.classDemoBook).isEnabled());
+                for(int id:new int[]{R.id.classFareCheck,R.id.classAvailabilityCheck}) {
+                    android.widget.Button button=card.findViewById(id);
+                    android.graphics.Bitmap bitmap=android.graphics.Bitmap.createBitmap(button.getWidth(),button.getHeight(),android.graphics.Bitmap.Config.ARGB_8888);
+                    button.draw(new android.graphics.Canvas(bitmap));
+                    int background=bitmap.getPixel(button.getWidth()/8,button.getHeight()/2);
+                    assertTrue("Enquiry text contrast",androidx.core.graphics.ColorUtils.calculateContrast(button.getCurrentTextColor(),background)>=4.5);
+                    bitmap.recycle();
+                }
+                card.findViewById(R.id.classFareCheck).performClick(); return null; });
+            waitFor(()->card.findViewById(R.id.classDemoBook).isEnabled());
+            Instrumentation.ActivityMonitor monitor=instrumentation.addMonitor(BookingActivity.class.getName(),null,false);
+            try {
+                main(()->{ card.findViewById(R.id.classDemoBook).performClick(); card.findViewById(R.id.classDemoBook).performClick(); return null; });
+                Activity booking=instrumentation.waitForMonitorWithTimeout(monitor,10000); assertNotNull(code+" passenger entry",booking); opened.add(booking);
+                waitFor(()->booking.findViewById(R.id.confirmBookingButton).isEnabled());
+                assertEquals(1,monitor.getHits());
+                assertEquals(code,booking.getIntent().getStringExtra(BookingActivity.EXTRA_CLASS));
+                com.railreserve.model.FareSnapshot quote=(com.railreserve.model.FareSnapshot)booking.getIntent().getSerializableExtra(BookingActivity.EXTRA_FARE_SNAPSHOT);
+                quote.requireContext("90330","AAA","BBB",LocalDate.now().toString(),code,"GN");
+                assertEquals(87500,quote.getAmountPaise()); assertEquals("RailCore fare estimate",quote.getSource()); assertNotNull(quote.getRetrievedAt());
+                assertNull(quote.getAvailability());
+                main(()->{ assertEquals(6,((Spinner)booking.findViewById(R.id.seatSpinner)).getAdapter().getCount());
+                    assertTrue(text(booking,R.id.bookingFareSummary).contains("875.00")); booking.finish(); return null; });
+                instrumentation.waitForIdleSync();
+            } finally { instrumentation.removeMonitor(monitor); }
+        }
+        assertEquals(8,server.paths.stream().filter(path->path.contains("/fare")).count());
+        assertEquals(0,server.paths.stream().filter(path->path.contains("/availability")).count());
+    }
+
+    @Test public void oldProviderTimestampExplainsExpiryAndFreshReenquiryEnablesBooking() throws Exception {
+        assumeTrue(BuildConfig.LIVE_FARE_ENABLED);
+        server.handler=path->{
+            try {
+                JSONObject response=new JSONObject(LocalBackendFixture.enquiry("90331","AAA","BBB",LocalDate.now().toString(),"2A",true,875.0));
+                response.getJSONObject("data").put("retrievedAt",java.time.Instant.now().minusSeconds(61).toString());
+                return new LocalBackendFixture.Response(200,path.contains("/fare") ? response.toString() : schedule("90331",new String[]{"2A"}));
+            } catch(Exception e) { throw new AssertionError(e); }
+        };
+        Activity details=start(detailsIntent("90331",new String[]{"2A"},1));
+        waitFor(()->details.findViewById(R.id.detailsProgress).getVisibility()==View.GONE);
+        View card=main(()->details.findViewById(R.id.detailsClasses).findViewWithTag("2A"));
+        main(()->{ card.findViewById(R.id.classFareCheck).performClick(); return null; });
+        waitFor(()->((TextView)card.findViewById(R.id.classFare)).getText().toString().contains("expired"));
+        main(()->{ assertFalse(card.findViewById(R.id.classDemoBook).isEnabled());
+            assertTrue(((TextView)card.findViewById(R.id.classFareCheck)).getText().toString().contains("again")); return null; });
+        server.handler=path->new LocalBackendFixture.Response(200,LocalBackendFixture.enquiry("90331","AAA","BBB",LocalDate.now().toString(),"2A",true,875.0));
+        main(()->{ card.findViewById(R.id.classFareCheck).performClick(); return null; });
+        waitFor(()->card.findViewById(R.id.classDemoBook).isEnabled());
+        assertEquals(3,server.requests.get());
     }
 
     private String availability(String date) { return "{\"success\":true,\"data\":{\"availabilityStatus\":\"UNKNOWN\",\"statusType\":\"UNKNOWN\",\"availabilityDate\":\"" + date + "\",\"providerSource\":\"TEST FIXTURE availability\"}}"; }

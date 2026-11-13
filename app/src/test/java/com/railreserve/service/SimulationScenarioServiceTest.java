@@ -51,4 +51,34 @@ public class SimulationScenarioServiceTest {
         assertFalse(SimulationScenarioService.supportsTimetable(1, 0));
         assertFalse(SimulationScenarioService.supportsTimetable(-1, 0));
     }
+
+    @Test public void allEightClassesPreserveTheirQuoteWithoutUsingLegacyFares() {
+        AtomicInteger calls = new AtomicInteger();
+        for (TravelClass clazz : TravelClass.values()) {
+            assertTrue(com.railreserve.live.LiveClassCatalog.supportsDemo(clazz.getCode()));
+            com.railreserve.model.FareSnapshot quote = new com.railreserve.model.FareSnapshot("12345","AAA","BBB",
+                    LocalDate.now().toString(),clazz.getCode(),"GN",87500,"RailCore fare estimate",java.time.Instant.now().toString(),null,null,null,null);
+            SimulationRequest selection = new SimulationRequest("12345","Selected Train","AAA","From","BBB","To",
+                    quote.getDate(),clazz,"08:00","12:00",0,0,quote);
+            new SimulationScenarioService(actual -> {
+                assertSame(quote,actual.getFareSnapshot());
+                assertEquals(875,actual.getFareSnapshot().getFareRupees()); calls.incrementAndGet(); return null;
+            }).prepare(selection);
+        }
+        assertEquals(8,calls.get());
+        assertFalse(com.railreserve.live.LiveClassCatalog.supportsDemo("EV"));
+    }
+
+    @Test public void additionalClassesRequireQuotesAndStaleOrMismatchedQuotesNeverCreateInventory() {
+        SimulationScenarioService service = new SimulationScenarioService(selection -> { fail("Invalid quote reached inventory"); return null; });
+        String today = LocalDate.now().toString();
+        assertThrows(IllegalArgumentException.class, () -> service.prepare(request("12345","AAA","BBB",today,TravelClass.FIRST_AC,0)));
+        for (boolean stale : new boolean[]{true,false}) {
+            com.railreserve.model.FareSnapshot quote = new com.railreserve.model.FareSnapshot("12345","AAA","BBB",today,
+                    "1A","GN",87500,"RailCore fare estimate",java.time.Instant.now().minusSeconds(stale ? 61 : 0).toString(),null,null,null,null);
+            // The first quote is expired; the second deliberately has a different route.
+            assertThrows(IllegalArgumentException.class, () -> service.prepare(new SimulationRequest("12345","Selected Train","AAA","From",
+                    stale ? "BBB" : "CCC","To",today,TravelClass.FIRST_AC,"08:00","12:00",0,0,quote)));
+        }
+    }
 }

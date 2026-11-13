@@ -35,17 +35,30 @@ public final class LiveDataRepository {
     public LiveFare getFare(String trainNumber, String from, String to, String date,
                             String classCode, String quotaCode) throws BackendException {
         if (!BuildConfig.LIVE_FARE_ENABLED) throw new BackendException("CAPABILITY_UNAVAILABLE",
-                "Live fare access has not been verified for this provider account.");
-        return LiveDataParser.parseFare(
-                api.fare(trainNumber, from, to, date, classCode, quotaCode));
+                "Fare enquiries are disabled in this build.");
+        LiveFare fare = LiveDataParser.parseFare(api.fare(trainNumber, from, to, date, classCode, quotaCode));
+        fare.getContext().requireMatch(trainNumber,from,to,date,classCode,quotaCode);
+        requireProvenance(fare.getSource(), "RailCore fare estimate", fare.getRetrievedAt());
+        return fare;
     }
 
     public LiveAvailability getAvailability(String trainNumber, String from, String to, String date,
                                             String classCode, String quotaCode) throws BackendException {
         if (!BuildConfig.LIVE_AVAILABILITY_ENABLED) throw new BackendException("CAPABILITY_UNAVAILABLE",
-                "Live availability access has not been verified for this provider account.");
-        return LiveDataParser.parseAvailability(
-                api.availability(trainNumber, from, to, date, classCode, quotaCode));
+                "Availability enquiries are disabled in this build.");
+        LiveAvailability result = LiveDataParser.parseAvailability(api.availability(trainNumber, from, to, date, classCode, quotaCode));
+        result.getContext().requireMatch(trainNumber,from,to,date,classCode,quotaCode);
+        requireProvenance(result.getSource(), "RailCore availability", result.getRetrievedAt());
+        return result;
+    }
+
+    private void requireProvenance(String source, String expected, String retrievedAt) throws BackendException {
+        try {
+            if (!expected.equals(source)) throw new IllegalArgumentException();
+            java.time.Instant.parse(retrievedAt);
+        } catch (RuntimeException invalid) {
+            throw new BackendException("INVALID_RESPONSE", "Provider source or retrieval time could not be verified. Please retry.");
+        }
     }
 
     public synchronized LiveSchedule getSchedule(String trainNumber) throws BackendException {

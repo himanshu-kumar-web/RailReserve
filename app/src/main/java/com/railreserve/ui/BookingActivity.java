@@ -41,6 +41,8 @@ public class BookingActivity extends AppCompatActivity {
     public static final String EXTRA_ARRIVAL = "arrival";
     public static final String EXTRA_ARRIVAL_OFFSET = "arrival_offset";
     public static final String EXTRA_CLASS = "travel_class";
+    public static final String EXTRA_FARE_SNAPSHOT = "live_fare_snapshot";
+    private com.railreserve.model.FareSnapshot fareSnapshot;
     public static final String EXTRA_LIVE_SIMULATION = "live_derived_simulation";
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -69,9 +71,13 @@ public class BookingActivity extends AppCompatActivity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         setContentView(R.layout.activity_booking);
+        Object quote = getIntent().getSerializableExtra(EXTRA_FARE_SNAPSHOT);
+        fareSnapshot = quote instanceof com.railreserve.model.FareSnapshot ? (com.railreserve.model.FareSnapshot) quote : null;
         boolean simulation = getIntent().getBooleanExtra(EXTRA_LIVE_SIMULATION, false);
         findViewById(R.id.bookingSimulationNotice).setVisibility(simulation ? View.VISIBLE : View.GONE);
         findViewById(R.id.bookingSimulationPolicy).setVisibility(simulation ? View.VISIBLE : View.GONE);
+        if (simulation) ((TextView) findViewById(R.id.bookingSimulationPolicy)).setText(fareSnapshot == null
+                ? "A provider fare is required. Return to Train Details." : UiText.quote(fareSnapshot));
         View root = findViewById(R.id.bookingRoot);
         ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -113,14 +119,23 @@ public class BookingActivity extends AppCompatActivity {
         fareSummary = findViewById(R.id.bookingFareSummary);
         genderError = findViewById(R.id.genderError);
 
-        seatAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, new ArrayList<>());
+        seatAdapter = new ArrayAdapter<Seat>(this, android.R.layout.simple_spinner_item, new ArrayList<>()) {
+            private View priced(View view,int position) {
+                Seat seat = getItem(position);
+                if (fareSnapshot != null && seat != null && view instanceof TextView)
+                    ((TextView) view).setText(seat.getCoach() + " - Seat " + seat.getNumber() + " (" + PaymentReceiptText.amount(fareSnapshot.getAmountPaise()) + ")");
+                return view;
+            }
+            @Override public View getView(int position, View view, android.view.ViewGroup parent) { return priced(super.getView(position,view,parent),position); }
+            @Override public View getDropDownView(int position, View view, android.view.ViewGroup parent) { return priced(super.getDropDownView(position,view,parent),position); }
+        };
         seatAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         seatSpinner.setAdapter(seatAdapter);
         seatSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 Seat seat = (Seat) parent.getItemAtPosition(position);
                 selectedSeatSummary.setText("Selected seat  |  " + seat.getCoach() + " - " + seat.getNumber());
-                fareSummary.setText("Demo fare  |  \u20B9 " + seat.getFare());
+                fareSummary.setText((fareSnapshot == null ? "Local demo fare: " : "Captured estimate: ") + PaymentReceiptText.amount(checkoutAmount(seat)));
             }
             @Override public void onNothingSelected(AdapterView<?> parent) {
                 selectedSeatSummary.setText("Select an available seat below");
@@ -236,15 +251,24 @@ public class BookingActivity extends AppCompatActivity {
             return;
         }
 
+        if (getIntent().getBooleanExtra(EXTRA_LIVE_SIMULATION,false) && fareSnapshot == null) {
+            seatStatus.setText("A matching provider fare is required. Return to Train Details."); seatStatus.setVisibility(View.VISIBLE); return;
+        }
         KeyboardHelper.dismiss(this);
         BookingRequest request = new BookingRequest(journeyId, selectedSeat.getId(),
-                travelClass, name, age, String.valueOf(genderSpinner.getSelectedItem()));
+                travelClass, name, age, String.valueOf(genderSpinner.getSelectedItem()), null, null, fareSnapshot);
         String summary = ((TextView) findViewById(R.id.bookingTrainSummary)).getText().toString()
                 + "\n\nPassenger: " + name + ", age " + age + ", " + genderSpinner.getSelectedItem()
                 + "\nSelected seat: " + selectedSeat.getCoach() + " - " + selectedSeat.getNumber()
-                + "\nDemo fare: " + PaymentReceiptText.amount(Math.multiplyExact((long) selectedSeat.getFare(), 100L));
-        submission.review(request, Math.multiplyExact((long) selectedSeat.getFare(), 100L), summary);
+                + "\nDemo checkout amount: " + PaymentReceiptText.amount(checkoutAmount(selectedSeat)) + (fareSnapshot == null ? "" : "\n" + UiText.quote(fareSnapshot));
+        try { submission.review(request, checkoutAmount(selectedSeat), summary); }
+        catch (IllegalArgumentException invalidQuote) {
+            seatStatus.setText(invalidQuote.getMessage());
+            seatStatus.setVisibility(View.VISIBLE);
+        }
     }
+
+    private long checkoutAmount(Seat seat) { return fareSnapshot == null ? Math.multiplyExact((long) seat.getFare(),100L) : fareSnapshot.getAmountPaise(); }
 
     private void configureCheckout() {
         checkoutSummary = findViewById(R.id.checkoutSummary);
@@ -274,6 +298,9 @@ public class BookingActivity extends AppCompatActivity {
 
     private void renderCheckout(BookingSubmissionViewModel.State result) {
         boolean reviewing = result != null;
+        boolean liveForm = !reviewing && getIntent().getBooleanExtra(EXTRA_LIVE_SIMULATION,false);
+        findViewById(R.id.bookingSimulationNotice).setVisibility(liveForm ? View.VISIBLE : View.GONE);
+        findViewById(R.id.bookingSimulationPolicy).setVisibility(liveForm ? View.VISIBLE : View.GONE);
         findViewById(R.id.bookingForm).setVisibility(reviewing ? View.GONE : View.VISIBLE);
         findViewById(R.id.demoCheckoutPanel).setVisibility(reviewing ? View.VISIBLE : View.GONE);
         progress.setVisibility(submitting ? View.VISIBLE : View.GONE);
@@ -312,8 +339,9 @@ public class BookingActivity extends AppCompatActivity {
     private void showConfirmation(Booking booking) {
         if (confirmationDialog != null && confirmationDialog.isShowing()) return;
         View confirmation = getLayoutInflater().inflate(R.layout.dialog_booking_confirmation, null);
-        ((TextView) confirmation.findViewById(R.id.confirmationStatus)).setText(booking.getStatus());
+        ((TextView) confirmation.findViewById(R.id.confirmationStatus)).setText("Local demo: " + booking.getStatus());
         ((TextView) confirmation.findViewById(R.id.confirmationPnr)).setText(booking.getPnr());
+        TicketUi.bindCopy(confirmation,booking.getPnr());
         ((TextView) confirmation.findViewById(R.id.confirmationTrain)).setText(
                 "Train " + booking.getTrainNumber() + "  |  " + booking.getTrainName());
         ((TextView) confirmation.findViewById(R.id.confirmationRoute)).setText(
@@ -327,11 +355,11 @@ public class BookingActivity extends AppCompatActivity {
                 "Seat  |  " + booking.getCoach() + " - " + booking.getSeatNumber()
                         + "     Class  |  " + booking.getTravelClass().getLabel());
         ((TextView) confirmation.findViewById(R.id.confirmationFare)).setText(
-                "Total demo fare  |  \u20B9 " + booking.getFare());
+                "Demo checkout amount: " + PaymentReceiptText.amount(Math.multiplyExact((long) booking.getFare(),100L)));
 
         ((TextView) confirmation.findViewById(R.id.confirmationPayment)).setText(PaymentReceiptText.receipt(booking));
         confirmationDialog = new AlertDialog.Builder(this)
-                .setTitle("CONFIRMED".equals(booking.getStatus()) ? "Booking confirmed" : "Booking cancelled")
+                .setTitle("CONFIRMED".equals(booking.getStatus()) ? "Local demo booking confirmed" : "Local demo booking cancelled")
                 .setView(confirmation)
                 .setCancelable(false)
                 .setPositiveButton("My bookings", (dialog, which) -> {

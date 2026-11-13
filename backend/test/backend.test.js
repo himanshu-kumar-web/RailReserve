@@ -19,6 +19,22 @@ async function withServer(app, run) {
 
 function fakeClient(get = async () => ({})) { return { get }; }
 
+test('replays the reported SL fare and waitlist contract using fixtures only', async () => {
+  const app = createApp({ capabilities: { fare: true, availability: true }, client: fakeClient(async (path) => ({
+    train_number: '15004', from_station_code: 'GKP', to_station_code: 'PRYJ', quota: 'GN', journey_date: '2026-11-15',
+    ...(path === 'fares/estimate' ? { fares: [{ class_code: 'SL', fare: 245, currency: 'INR' }] }
+      : { classes: [{ class_code: 'SL', availability_text: 'GNWL107/WL62', status: 'WAITLIST' }] }),
+  })) });
+  await withServer(app, async (base) => {
+    const query = 'source=GKP&destination=PRYJ&journeyDate=2026-11-15&classCode=SL&quotaCode=GN';
+    const fare = (await (await fetch(`${base}/api/trains/15004/fare?${query}`)).json()).data;
+    assert.equal(fare.fareKnown, true); assert.equal(fare.totalFare, 245); assert.equal(fare.providerSource, 'RailCore fare estimate');
+    const availability = (await (await fetch(`${base}/api/trains/15004/availability?${query}`)).json()).data;
+    assert.equal(availability.availabilityDate, '2026-11-15'); assert.equal(availability.availabilityStatus, 'GNWL107/WL62');
+    assert.equal(availability.statusType, 'WAITLIST'); assert.equal(availability.providerSource, 'RailCore availability');
+  });
+});
+
 test('optional capabilities are disabled by default without contacting the provider', async () => {
   let calls = 0;
   await withServer(createApp({ client: fakeClient(async () => { calls++; }), capabilities: {} }), async (base) => {

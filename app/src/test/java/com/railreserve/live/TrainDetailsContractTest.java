@@ -13,7 +13,7 @@ public class TrainDetailsContractTest {
         LiveTrain train = LiveDataParser.parseTrains(body).get(0);
         assertEquals(Arrays.asList("CC", "EC"), train.getClasses());
         assertEquals("RailCore route search", train.getClassSource());
-        assertFalse(LiveClassCatalog.supportsDemo("CC"));
+        assertTrue(LiveClassCatalog.supportsDemo("CC"));
         assertTrue(LiveClassCatalog.supportsDemo("SL"));
     }
     @Test public void scheduleCarriesAllVerifiedClassesIncludingUnknownCodes() throws Exception {

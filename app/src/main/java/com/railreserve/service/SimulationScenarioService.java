@@ -12,6 +12,16 @@ public final class SimulationScenarioService {
     public SimulationScenarioService(SimulationScenarioDao dao) { this.dao = dao; }
 
     public TrainSearchResult prepare(SimulationRequest request) {
+        validateJourney(request);
+        if (request.getFareSnapshot() == null) SimulationScenarioPolicy.fareRupees(request.getTravelClass());
+        else {
+            request.getFareSnapshot().requireContext(request.getNumber(),request.getSourceCode(),request.getDestinationCode(),request.getDate(),request.getTravelClass().getCode(),"GN");
+            request.getFareSnapshot().requireFresh();
+        }
+        return dao.getOrCreate(request);
+    }
+
+    public static void validateJourney(SimulationRequest request) {
         if (request == null || !request.getNumber().matches("[0-9]{5}") || request.getName().isEmpty()) {
             throw new IllegalArgumentException("The selected train is missing its number or name.");
         }
@@ -25,11 +35,10 @@ public final class SimulationScenarioService {
         if (date.isBefore(LocalDate.now()) || date.isAfter(LocalDate.now().plusDays(14))) {
             throw new IllegalArgumentException("Choose a journey date within the next 14 days.");
         }
-        SimulationScenarioPolicy.fareRupees(request.getTravelClass());
+        if(request.getTravelClass()==null) throw new IllegalArgumentException("Choose a supported travel class.");
         if (!supportsTimetable(request.getDepartureDay(), request.getArrivalDay())) {
             throw new IllegalArgumentException("This timetable cannot be represented by the current demo. Use the existing Demo Booking section.");
         }
-        return dao.getOrCreate(request);
     }
 
     public static boolean supportsTimetable(Integer departureDay, Integer arrivalDay) {

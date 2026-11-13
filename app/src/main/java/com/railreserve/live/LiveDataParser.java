@@ -83,7 +83,7 @@ public final class LiveDataParser {
             throw malformed("Seat availability response was incomplete.");
         }
         return new LiveAvailability(status, statusType, optionalString(data, "availabilityDate"),
-                optionalString(data, "providerSource"), optionalString(data, "retrievedAt"), optionalString(data, "inventoryUpdatedAt"));
+                optionalString(data, "providerSource"), optionalString(data, "retrievedAt"), optionalString(data, "inventoryUpdatedAt"), enquiryContext(data));
     }
 
     public static LiveFare parseFare(JSONObject data) throws BackendException {
@@ -95,7 +95,13 @@ public final class LiveDataParser {
         if (known && (total == null || !Double.isFinite(total) || total < 0)) {
             throw malformed("Fare response did not include a valid total.");
         }
-        return new LiveFare(known, known ? total : null, optionalString(data, "providerSource"), optionalString(data, "retrievedAt"));
+        return new LiveFare(known, known ? total : null, optionalString(data, "providerSource"), optionalString(data, "retrievedAt"), enquiryContext(data));
+    }
+
+    private static EnquiryContext enquiryContext(JSONObject data) {
+        return new EnquiryContext(optionalString(data,"trainNumber"),optionalString(data == null ? null : data.optJSONObject("source"),"code"),
+                optionalString(data == null ? null : data.optJSONObject("destination"),"code"),optionalString(data,"requestedJourneyDate"),
+                optionalString(data,"classCode"),optionalString(data,"quotaCode"));
     }
 
     public static JSONObject successData(String body) throws BackendException {

@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/findBookingRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/surface_soft"
     android:fillViewport="true">
-
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -14,18 +15,19 @@
         android:paddingTop="16dp"
         android:paddingEnd="20dp"
         android:paddingBottom="24dp">
-
         <Button
             android:id="@+id/lookupBackButton"
             android:layout_width="wrap_content"
-            android:layout_height="48dp"
+            android:layout_height="wrap_content"
             android:backgroundTint="@android:color/transparent"
             android:minWidth="48dp"
             android:text="‹  Tickets"
             android:textAllCaps="false"
             android:textColor="@color/brand_dark"
-            android:textSize="15sp" />
-
+            android:textSize="15sp"
+            android:minHeight="48dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp" />
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -34,7 +36,6 @@
             android:elevation="2dp"
             android:orientation="vertical"
             android:padding="22dp">
-
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -42,16 +43,14 @@
                 android:textColor="#D9E3F0"
                 android:textSize="12sp"
                 android:textStyle="bold" />
-
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
                 android:text="Find your booking"
                 android:textColor="@color/white"
-                android:textSize="28sp"
+                android:textSize="26sp"
                 android:textStyle="bold" />
-
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -60,7 +59,6 @@
                 android:textColor="#D9E3F0"
                 android:textSize="14sp" />
         </LinearLayout>
-
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -69,7 +67,6 @@
             android:elevation="2dp"
             android:orientation="vertical"
             android:padding="18dp">
-
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -77,11 +74,10 @@
                 android:textColor="@color/ink"
                 android:textSize="12sp"
                 android:textStyle="bold" />
-
             <EditText
                 android:id="@+id/pnrInput"
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:background="@drawable/booking_input_background"
                 android:digits="0123456789"
@@ -94,21 +90,26 @@
                 android:textColor="@color/ink"
                 android:textColorHint="@color/muted"
                 android:textSize="18sp"
-                android:letterSpacing="0.08" />
-
+                android:letterSpacing="0.08"
+                android:minHeight="56dp"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp" />
             <Button
                 android:id="@+id/lookupButton"
                 android:layout_width="match_parent"
-                android:layout_height="54dp"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
                 android:background="@drawable/button_primary"
-                android:minHeight="48dp"
+                android:minHeight="54dp"
                 android:text="Find booking"
                 android:textAllCaps="false"
                 android:textColor="@color/white"
                 android:textSize="16sp"
-                android:textStyle="bold" />
-
+                android:textStyle="bold"
+                app:backgroundTint="@null"
+                android:backgroundTint="@null"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp" />
             <ProgressBar
                 android:id="@+id/lookupProgress"
                 style="?android:attr/progressBarStyleHorizontal"
@@ -117,7 +118,6 @@
                 android:layout_marginTop="12dp"
                 android:indeterminate="true"
                 android:visibility="gone" />
-
             <TextView
                 android:id="@+id/lookupMessage"
                 android:layout_width="match_parent"
@@ -125,9 +125,9 @@
                 android:layout_marginTop="12dp"
                 android:textColor="@color/muted"
                 android:textSize="14sp"
-                android:visibility="gone" />
+                android:visibility="gone"
+                android:accessibilityLiveRegion="polite" />
         </LinearLayout>
-
         <LinearLayout
             android:id="@+id/lookupResultCard"
             android:layout_width="match_parent"
@@ -138,13 +138,11 @@
             android:orientation="vertical"
             android:padding="18dp"
             android:visibility="gone">
-
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
-
                 <TextView
                     android:id="@+id/lookupResultPnr"
                     android:layout_width="0dp"
@@ -152,20 +150,34 @@
                     android:layout_weight="1"
                     android:textColor="@color/ink"
                     android:textSize="18sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/lookupResultStatus"
-                    android:layout_width="wrap_content"
+                    android:textStyle="bold"
+                    android:fontFamily="monospace"
+                    android:textIsSelectable="true" />
+                <ImageButton
+                    android:id="@+id/copyPnrButton"
+                    android:layout_width="48dp"
                     android:layout_height="wrap_content"
-                    android:paddingStart="10dp"
-                    android:paddingTop="6dp"
-                    android:paddingEnd="10dp"
-                    android:paddingBottom="6dp"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
+                    android:minHeight="48dp"
+                    android:minWidth="48dp"
+                    android:background="@drawable/button_secondary"
+                    app:backgroundTint="@null"
+                    android:contentDescription="@string/copy_demo_pnr"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_copy"
+                    android:scaleType="centerInside" />
             </LinearLayout>
-
+            <TextView
+                android:id="@+id/lookupResultStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingStart="10dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="6dp"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:accessibilityLiveRegion="polite"
+                android:layout_marginTop="8dp" />
             <TextView
                 android:id="@+id/lookupCancelledNote"
                 android:layout_width="match_parent"
@@ -175,7 +187,6 @@
                 android:textColor="#B42318"
                 android:textSize="13sp"
                 android:visibility="gone" />
-
             <TextView
                 android:id="@+id/lookupTrain"
                 android:layout_width="match_parent"
@@ -184,7 +195,6 @@
                 android:textColor="@color/ink"
                 android:textSize="18sp"
                 android:textStyle="bold" />
-
             <TextView
                 android:id="@+id/lookupRoute"
                 android:layout_width="match_parent"
@@ -193,7 +203,6 @@
                 android:textColor="@color/brand_dark"
                 android:textSize="17sp"
                 android:textStyle="bold" />
-
             <TextView
                 android:id="@+id/lookupDateTime"
                 android:layout_width="match_parent"
@@ -202,22 +211,19 @@
                 android:lineSpacingExtra="4dp"
                 android:textColor="@color/muted"
                 android:textSize="14sp" />
-
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:layout_marginTop="14dp"
                 android:layout_marginBottom="14dp"
                 android:background="@color/border" />
-
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="PASSENGER"
                 android:textColor="@color/muted"
-                android:textSize="11sp"
+                android:textSize="12sp"
                 android:textStyle="bold" />
-
             <TextView
                 android:id="@+id/lookupPassenger"
                 android:layout_width="match_parent"
@@ -225,16 +231,14 @@
                 android:layout_marginTop="4dp"
                 android:textColor="@color/ink"
                 android:textSize="15sp" />
-
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
                 android:text="CLASS AND SEAT"
                 android:textColor="@color/muted"
-                android:textSize="11sp"
+                android:textSize="12sp"
                 android:textStyle="bold" />
-
             <TextView
                 android:id="@+id/lookupSeat"
                 android:layout_width="match_parent"
@@ -243,7 +247,6 @@
                 android:textColor="@color/ink"
                 android:textSize="15sp"
                 android:textStyle="bold" />
-
             <TextView
                 android:id="@+id/lookupFare"
                 android:layout_width="match_parent"
@@ -253,10 +256,14 @@
                 android:textColor="@color/brand_dark"
                 android:textSize="20sp"
                 android:textStyle="bold" />
-            <TextView android:id="@+id/lookupPayment"
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:layout_marginTop="12dp" android:lineSpacingExtra="4dp"
-                android:textColor="@color/brand_dark" android:textSize="13sp"
+            <TextView
+                android:id="@+id/lookupPayment"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:lineSpacingExtra="4dp"
+                android:textColor="@color/brand_dark"
+                android:textSize="13sp"
                 android:textIsSelectable="true" />
         </LinearLayout>
     </LinearLayout>

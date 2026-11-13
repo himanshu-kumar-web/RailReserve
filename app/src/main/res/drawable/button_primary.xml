@@ -3,7 +3,7 @@
     <item>
         <selector>
             <item android:state_enabled="false">
-                <shape><solid android:color="#9CBFBC"/><corners android:radius="14dp"/></shape>
+                <shape><solid android:color="#526461"/><corners android:radius="14dp"/></shape>
             </item>
             <item>
                 <shape><solid android:color="@color/brand"/><corners android:radius="14dp"/></shape>

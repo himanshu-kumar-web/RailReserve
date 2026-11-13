@@ -19,6 +19,9 @@ import java.util.concurrent.Executors;
 /** Retains requests across rotation. Optional enquiries are manual and expire after one minute. */
 public final class TrainDetailsViewModel extends ViewModel {
     static final class Check {
+        LiveFare fare;
+        LiveAvailability availability;
+        boolean expired;
         boolean loading;
         String text;
         long expiresAt;
@@ -51,7 +54,11 @@ public final class TrainDetailsViewModel extends ViewModel {
         String key = code + (fare ? ":fare" : ":availability");
         Check check = checks.get(key);
         if (check != null && !check.loading && check.expiresAt > 0 && SystemClock.elapsedRealtime() >= check.expiresAt) {
-            checks.remove(key); return null;
+            expire(check, fare);
+        }
+        if (check != null && check.fare != null && check.fare.isKnown()) {
+            long age = java.time.Duration.between(Instant.parse(check.fare.getRetrievedAt()),Instant.now()).toMillis();
+            if (age > 60_000 || age < -300_000) expire(check,true);
         }
         return check;
     }
@@ -64,32 +71,66 @@ public final class TrainDetailsViewModel extends ViewModel {
         Check check = new Check(); check.loading = true; checks.put(key, check); changed();
         worker.execute(() -> {
             String text;
+            LiveFare loadedFare = null;
+            LiveAvailability loadedAvailability = null;
             try {
                 if (fare) {
                     LiveFare result = repository.getFare(train.getNumber(), from, to, date, code, "GN");
-                    text = (result.isKnown() ? "Provider fare estimate: " + NumberFormat.getCurrencyInstance(new Locale("en", "IN")).format(result.getTotal())
+                    loadedFare = result;
+                    text = (result.isKnown() ? "Fare estimate: " + NumberFormat.getCurrencyInstance(new Locale("en", "IN")).format(result.getTotal())
                             : "Fare not provided for this class.") + provenance(result.getSource(), result.getRetrievedAt());
                 } else {
                     LiveAvailability result = repository.getAvailability(train.getNumber(), from, to, date, code, "GN");
                     if (!date.equals(result.getJourneyDate())) throw new BackendException("INVALID_RESPONSE", "Availability date did not match this journey.");
-                    text = result.getStatus() + " · " + date + " · General quota"
+                    loadedAvailability = result;
+                    text = "Availability: " + result.getStatus() + "\nStatus: " + result.getStatusType() + " | " + date + " | GN"
                             + provenance(result.getSource(), result.getRetrievedAt())
-                            + "\nInventory updated: " + value(result.getInventoryUpdatedAt());
+                            + (result.getInventoryUpdatedAt() == null ? "" : "\nInventory updated: " + result.getInventoryUpdatedAt());
                 }
             } catch (Exception failure) { text = message(failure); }
             final String display = text;
+            final LiveFare fareResult = loadedFare;
+            final LiveAvailability availabilityResult = loadedAvailability;
             main.post(() -> {
-                if (cleared) return;
-                check.loading = false; check.text = display; check.expiresAt = SystemClock.elapsedRealtime() + 60_000;
+                if (cleared || checks.get(key) != check) return;
+                boolean expirable = (fareResult != null && fareResult.isKnown()) || availabilityResult != null;
+                check.loading = false; check.text = display; check.fare = fareResult; check.availability = availabilityResult;
+                check.expiresAt = expirable ? SystemClock.elapsedRealtime() + 60_000 : 0;
                 changed();
-                main.postDelayed(() -> { if (!cleared && checks.get(key) == check) { checks.remove(key); changed(); } }, 60_000);
+                if (expirable) main.postDelayed(() -> { if (!cleared && checks.get(key) == check) { expire(check, fare); changed(); } }, 60_000);
             });
         });
     }
 
+    private void expire(Check check, boolean fare) {
+        check.expired = true; check.expiresAt = 0; check.fare = null; check.availability = null;
+        check.text = fare ? "Fare quote expired. Check fare again to simulate booking." : "Availability expired. Check availability again.";
+    }
+
+    com.railreserve.model.FareSnapshot capture(LiveTrain train,String from,String to,String date,String code) {
+        Check price = getCheck(code,true), seats = getCheck(code,false);
+        if (price != null && price.expired) throw new IllegalArgumentException("Fare quote expired. Check fare again to simulate booking.");
+        if (price == null || price.loading || price.fare == null || !price.fare.isKnown()) throw new IllegalArgumentException("Check a provider fare before demo booking.");
+        LiveFare fare = price.fare;
+        try { fare.getContext().requireMatch(train.getNumber(),from,to,date,code,"GN"); }
+        catch (BackendException invalid) { throw new IllegalArgumentException(invalid.getMessage()); }
+        long paise;
+        try { paise = java.math.BigDecimal.valueOf(fare.getTotal()).movePointRight(2).longValueExact(); }
+        catch (RuntimeException e) { throw new IllegalArgumentException("The provider fare cannot be represented exactly."); }
+        LiveAvailability availability = seats == null || seats.loading ? null : seats.availability;
+        if (availability != null) {
+            try { availability.getContext().requireMatch(train.getNumber(),from,to,date,code,"GN"); }
+            catch (BackendException invalid) { availability = null; }
+        }
+        com.railreserve.model.FareSnapshot snapshot = new com.railreserve.model.FareSnapshot(train.getNumber(),from,to,date,code,"GN",paise,
+                fare.getSource(),fare.getRetrievedAt(),availability == null ? null : availability.getStatus(),
+                availability == null ? null : availability.getStatusType(),availability == null ? null : availability.getSource(),
+                availability == null ? null : availability.getRetrievedAt());
+        snapshot.requireFresh();
+        return snapshot;
+    }
     private String provenance(String source, String retrieved) {
-        return "\nSource: " + (source == null ? "RailReserve backend (provider not identified)" : source)
-                + "\nRetrieved: " + value(retrieved) + "\nChecked on device: " + Instant.now();
+        return "\n" + (source == null ? "Provider not identified" : source) + " | Checked: " + value(retrieved);
     }
     private String value(String text) { return text == null ? "Not provided" : text; }
     private String message(Exception failure) { return failure instanceof BackendException ? failure.getMessage() : "Could not load data. Please retry."; }
