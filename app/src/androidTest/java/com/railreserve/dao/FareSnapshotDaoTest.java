@@ -27,7 +27,7 @@ public class FareSnapshotDaoTest {
             try(SQLiteDatabase versionFour=SQLiteDatabase.openOrCreateDatabase(f.file,null)) {
                 versionFour.execSQL("DROP TABLE booking_fare_snapshots"); versionFour.setVersion(4);
             }
-            SQLiteDatabase upgraded=f.helper.getWritableDatabase(); assertEquals(6,upgraded.getVersion());
+            SQLiteDatabase upgraded=f.helper.getWritableDatabase(); assertEquals(7,upgraded.getVersion());
             for(String table:tables) assertEquals(expanded(schemas.get(table)),expanded(DatabaseUtils.stringForQuery(upgraded,"SELECT sql FROM sqlite_master WHERE name=?",new String[]{table})));
             assertEquals(0,DatabaseUtils.queryNumEntries(upgraded,"booking_fare_snapshots"));
             Booking preserved=f.service.findBookingByPnr(old.getPnr()); assertEquals(old.getId(),preserved.getId()); assertEquals(10000,preserved.getPayment().getAmountPaise());
@@ -35,8 +35,8 @@ public class FareSnapshotDaoTest {
             assertEquals("SIMULATED_REFUNDED",f.service.findBookingByPnr(old.getPnr()).getPayment().getRefundStatus());
         }
     }
-    private FareSnapshot quote(int fare) { return new FareSnapshot("15004","GKP","PRYJ",LocalDate.now().plusDays(1).toString(),"SL","GN",fare*100L,
-            "RailCore fare estimate",Instant.now().toString(),"GNWL107/WL62","WAITLIST","RailCore availability",Instant.now().toString()); }
+    private FareSnapshot quote(int fare) { String retrieved=Instant.now().toString(); return new FareSnapshot("15004","GKP","PRYJ",LocalDate.now().plusDays(1).toString(),"SL","GN",fare*100L,
+            "RailCore fare estimate",retrieved,"AVAILABLE 4","AVAILABLE","RailCore availability",retrieved); }
     private TrainSearchResult scenario(DemoPaymentTestDatabase f,FareSnapshot quote) {
         return new SimulationScenarioService(new SQLiteSimulationScenarioDao(f.helper)).prepare(new SimulationRequest("15004","TEST FIXTURE Chaurichaura","GKP","Gorakhpur","PRYJ","Prayagraj",
                 quote.getDate(),TravelClass.SLEEPER,"20:00","08:00",0,1,quote));
@@ -48,7 +48,8 @@ public class FareSnapshotDaoTest {
         try(DemoPaymentTestDatabase f=new DemoPaymentTestDatabase()) {
             FareSnapshot quote=quote(245); TrainSearchResult scenario=scenario(f,quote); BookingRequest request=request(f,scenario,quote);
             Booking booking=f.service.createBooking(request); assertEquals(245,booking.getFare()); assertEquals(24500,booking.getPayment().getAmountPaise());
-            assertEquals("GNWL107/WL62",booking.getFareSnapshot().getAvailability()); assertEquals("CONFIRMED",booking.getStatus());
+            assertEquals("AVAILABLE 4",booking.getFareSnapshot().getAvailability()); assertEquals("AVAILABLE",booking.getFareSnapshot().getStatusType());
+            assertEquals("CONFIRMED",booking.getStatus());
             assertEquals(booking.getId(),f.service.createBooking(request).getId());
             FareSnapshot different=quote(260);
             assertThrows(IllegalArgumentException.class,()->f.service.createBooking(new BookingRequest(request.getJourneyId(),request.getSeatId(),TravelClass.SLEEPER,
@@ -58,7 +59,28 @@ public class FareSnapshotDaoTest {
             assertTrue(f.service.getBookings().stream().anyMatch(b->b.getId()==booking.getId()&&b.getFareSnapshot()!=null));
             f.service.cancelBooking(booking.getId()); Booking cancelled=f.service.findBookingByPnr(booking.getPnr());
             assertEquals("SIMULATED_REFUNDED",cancelled.getPayment().getRefundStatus()); assertEquals(24500,cancelled.getPayment().getAmountPaise());
-            assertEquals("GNWL107/WL62",cancelled.getFareSnapshot().getAvailability()); assertEquals(6,f.service.getAvailableSeats(scenario.getJourneyId(),"SL").size());
+            assertEquals("AVAILABLE 4",cancelled.getFareSnapshot().getAvailability()); assertEquals(6,f.service.getAvailableSeats(scenario.getJourneyId(),"SL").size());
+        }
+    }
+    @Test public void waitlistAndRacNeverPrepareOrPersistADemoBooking() {
+        try(DemoPaymentTestDatabase f=new DemoPaymentTestDatabase()) {
+            FareSnapshot available=quote(245); TrainSearchResult scenario=scenario(f,available);
+            for(String[] status:new String[][]{{"GNWL107/WL62","WAITLIST"},{"RAC 12","RAC"}}) {
+                FareSnapshot blocked=new FareSnapshot(available.getNumber(),available.getFrom(),available.getTo(),available.getDate(),
+                        available.getClassCode(),available.getQuota(),available.getAmountPaise(),available.getSource(),
+                        available.getRetrievedAt(),status[0],status[1],"RailCore availability",available.getAvailabilityRetrievedAt());
+                BookingRequest request=new BookingRequest(scenario.getJourneyId(),
+                        f.service.getAvailableSeats(scenario.getJourneyId(),"SL").get(0).getId(),TravelClass.SLEEPER,
+                        "Blocked Passenger",25,"Other","DEMO-CHK-"+UUID.randomUUID(),blocked.getAmountPaise(),blocked);
+                assertThrows(IllegalArgumentException.class,()->f.service.createBooking(request));
+                assertThrows(IllegalArgumentException.class,()->f.dao.createBooking(request));
+                assertThrows(IllegalArgumentException.class,()->new SimulationScenarioService(new SQLiteSimulationScenarioDao(f.helper))
+                        .prepare(new SimulationRequest("15004","TEST FIXTURE","GKP","Gorakhpur","PRYJ","Prayagraj",
+                                blocked.getDate(),TravelClass.SLEEPER,"20:00","08:00",0,1,blocked)));
+            }
+            assertTrue(f.service.getBookings().isEmpty());
+            assertEquals(6,f.service.getAvailableSeats(scenario.getJourneyId(),"SL").size());
+            assertEquals(0,DatabaseUtils.queryNumEntries(f.helper.getReadableDatabase(),"demo_payments"));
         }
     }
     @Test public void laterQuoteDoesNotChangeOldBookingOrRefillScenario() {
@@ -81,7 +103,8 @@ public class FareSnapshotDaoTest {
     @Test public void wrongQuoteContextOrReviewAmountCannotAllocateSeat() {
         try(DemoPaymentTestDatabase f=new DemoPaymentTestDatabase()) {
             FareSnapshot quote=quote(245); TrainSearchResult scenario=scenario(f,quote); BookingRequest valid=request(f,scenario,quote);
-            FareSnapshot wrong=new FareSnapshot("15005","GKP","PRYJ",quote.getDate(),"SL","GN",24500,"RailCore fare estimate",quote.getRetrievedAt(),null,null,null,null);
+            FareSnapshot wrong=new FareSnapshot("15005","GKP","PRYJ",quote.getDate(),"SL","GN",24500,"RailCore fare estimate",quote.getRetrievedAt(),
+                    "AVAILABLE 4","AVAILABLE","RailCore availability",quote.getAvailabilityRetrievedAt());
             assertThrows(IllegalArgumentException.class,()->f.service.createBooking(new BookingRequest(valid.getJourneyId(),valid.getSeatId(),TravelClass.SLEEPER,"Passenger",25,"Other",valid.getCheckoutReference(),24500L,wrong)));
             assertThrows(IllegalArgumentException.class,()->f.service.createBooking(new BookingRequest(valid.getJourneyId(),valid.getSeatId(),TravelClass.SLEEPER,"Passenger",25,"Other",valid.getCheckoutReference(),10000L,quote)));
             assertEquals(6,f.service.getAvailableSeats(scenario.getJourneyId(),"SL").size());

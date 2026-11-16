@@ -17,6 +17,23 @@ public class FareSnapshotTest {
         assertEquals(245,snapshot.getFareRupees()); assertEquals(24500,snapshot.getAmountPaise());
         assertEquals("GNWL107/WL62",snapshot.getAvailability()); assertEquals("WAITLIST",snapshot.getStatusType());
     }
+    @Test public void liveBookingRequiresFreshAvailableStatus() {
+        FareSnapshot waitlist = quote(24500,Instant.now().toString());
+        assertThrows(IllegalArgumentException.class,waitlist::requireAvailableForBooking);
+        FareSnapshot rac = new FareSnapshot("15004","GKP","PRYJ","2026-11-15","SL","GN",24500,
+                "RailCore fare estimate",Instant.now().toString(),"RAC 12","RAC","RailCore availability",Instant.now().toString());
+        assertThrows(IllegalArgumentException.class,rac::requireAvailableForBooking);
+        FareSnapshot missing = new FareSnapshot("15004","GKP","PRYJ","2026-11-15","SL","GN",24500,
+                "RailCore fare estimate",Instant.now().toString(),null,null,null,null);
+        assertThrows(IllegalArgumentException.class,missing::requireAvailableForBooking);
+        FareSnapshot available = new FareSnapshot("15004","GKP","PRYJ","2026-11-15","SL","GN",24500,
+                "RailCore fare estimate",Instant.now().toString(),"AVAILABLE 4","AVAILABLE","RailCore availability",Instant.now().toString());
+        available.requireAvailableForBooking();
+        FareSnapshot expired = new FareSnapshot("15004","GKP","PRYJ","2026-11-15","SL","GN",24500,
+                "RailCore fare estimate",Instant.now().toString(),"AVAILABLE 4","AVAILABLE","RailCore availability",
+                Instant.now().minusSeconds(61).toString());
+        assertThrows(IllegalArgumentException.class,expired::requireAvailableForBooking);
+    }
     @Test public void rejectsFractionalNegativeAndOverflowAmountsWithoutRounding() {
         for (long value : new long[]{24501,-100,214748364800L}) assertThrows(IllegalArgumentException.class,()->quote(value,Instant.now().toString()));
     }

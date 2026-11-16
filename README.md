@@ -61,14 +61,21 @@ The project is not intended to replace a real reservation system or connect to o
 RailReserve includes the following features:
 
 - Search trains between stations using source, destination, and date information
+- Browse live train results with a route/date header and selectable nearby journey dates
 - View train results and route details
 - Select travel class and other booking preferences
 - Retrieve live station and schedule information through the backend
 - Check fare and availability for a selected train when enabled
+- Block live-derived demo checkout unless a fresh matching enquiry reports `AVAILABLE`; WAITLIST, RAC, unknown, missing, or expired status creates no booking
+- Show the provider availability status on live-derived tickets rather than presenting a locally generated seat as a railway assignment
 - Save booking information locally in SQLite
+- Download a PDF copy of a confirmed demo ticket using Android's save-file picker
 - Retrieve and manage previously booked records
+- Hide a ticket from listings without cancelling its retained booking or receipt; hide tickets automatically after their journey date
 - Simulate booking lookup and cancellation operations
 - Provide a user-friendly Android interface using XML-based UI components
+
+The downloaded PDF is a copy of a local demo booking only; it is not an official railway ticket and is not valid for travel.
 
 ## 6. Software Engineering Aspects
 
@@ -189,7 +196,7 @@ A typical user flow in the project is as follows:
 4. The app searches available trains.
 5. User views route and train details.
 6. The user can check live data or use the local demo mode.
-7. A booking is created and stored in SQLite.
+7. For live-derived demo checkout, the app verifies fresh fare and `AVAILABLE` status before it creates a local booking; WAITLIST/RAC and other unverified states stop without a ticket record.
 8. The user can view, search, and manage bookings later.
 
 ## 12. Setup and Run Instructions
@@ -251,7 +258,7 @@ These tests validate core logic and ensure the project remains stable as feature
 
 ## 14. Limitations
 
-This is a demo application and is not a live commercial reservation platform. The system intentionally avoids real payment processing and official ticket issuance. It demonstrates software engineering principles and application integration rather than creating a production-grade railway booking system.
+This is a demo application and is not a live commercial reservation platform. The system intentionally avoids real payment processing and official ticket issuance. Provider availability is informational and does not reserve railway inventory. Hiding or expiry removes a ticket only from the listing; the SQLite booking, PNR lookup, and receipt are retained. The app demonstrates software engineering principles and application integration rather than creating a production-grade railway booking system.
 
 ## 15. Future Enhancements
 
@@ -259,7 +266,6 @@ The project can be extended in the future with:
 
 - user authentication and profile management
 - seat selection with real-time booking states
-- ticket PDF generation
 - payment gateway integration
 - admin dashboard for train management
 - multi-language support

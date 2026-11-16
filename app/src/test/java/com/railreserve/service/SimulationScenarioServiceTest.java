@@ -57,7 +57,8 @@ public class SimulationScenarioServiceTest {
         for (TravelClass clazz : TravelClass.values()) {
             assertTrue(com.railreserve.live.LiveClassCatalog.supportsDemo(clazz.getCode()));
             com.railreserve.model.FareSnapshot quote = new com.railreserve.model.FareSnapshot("12345","AAA","BBB",
-                    LocalDate.now().toString(),clazz.getCode(),"GN",87500,"RailCore fare estimate",java.time.Instant.now().toString(),null,null,null,null);
+                    LocalDate.now().toString(),clazz.getCode(),"GN",87500,"RailCore fare estimate",java.time.Instant.now().toString(),
+                    "AVAILABLE 4","AVAILABLE","RailCore availability",java.time.Instant.now().toString());
             SimulationRequest selection = new SimulationRequest("12345","Selected Train","AAA","From","BBB","To",
                     quote.getDate(),clazz,"08:00","12:00",0,0,quote);
             new SimulationScenarioService(actual -> {

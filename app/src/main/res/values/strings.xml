@@ -9,6 +9,11 @@
     <string name="simulation_prepare_failed">Could not prepare this local simulation. Please retry.</string>
     <string name="simulation_back">Back to live results</string>
     <string name="navigate_back">‹  Back</string>
+    <string name="navigate_back_description">Back to previous screen</string>
+    <string name="download_ticket_pdf">Download ticket PDF</string>
+    <string name="ticket_pdf_saved">Demo ticket PDF saved.</string>
+    <string name="ticket_pdf_save_failed">Could not save the PDF. Please choose another location and try again.</string>
+    <string name="ticket_pdf_unavailable">The confirmed booking details are unavailable. Please open the booking again.</string>
     <string name="simulation_card_notice">Live fares and seat availability are unavailable. Simulate with fictional local inventory.</string>
     <string name="simulation_inventory_notice">Simulate using fictional local fares and seats. No real ticket or payment.</string>
     <string name="simulation_timetable_unsupported">Demo unavailable: timetable needs a known same-day or next-day arrival.</string>
@@ -63,7 +68,7 @@
     <string name="classes_loading">Loading provider schedule and offered classes…</string>
     <string name="classes_not_provided">The provider has not supplied an offered-class list. No live classes can be verified for this train.</string>
     <string name="classes_empty">The provider returned no offered travel classes for this train.</string>
-    <string name="classes_verified">Provider-listed classes. Check a fare to enable simulation.</string>
+    <string name="classes_verified">Provider-listed classes. Check fare and availability to enable simulation.</string>
     <string name="schedule_not_provided">Schedule information is missing. You can retry.</string>
     <string name="retry_train_details">Retry schedule and classes</string>
     <string name="train_details_missing">Train details are missing. Return to results and choose a train.</string>
@@ -83,7 +88,7 @@
     <string name="availability_not_checked">Availability: not checked.</string>
     <string name="open_local_demo">Open local Demo Booking</string>
     <string name="demo_quote_required">Check a matching fare estimate to enable demo checkout.</string>
-    <string name="demo_uses_quote">Demo checkout uses this captured estimate.</string>
+    <string name="demo_uses_quote">Demo checkout requires a fresh fare and AVAILABLE status.</string>
     <string name="quoted_simulation_policy">6 local demo seats per scenario. The captured RailCore estimate prices this demo checkout; no railway inventory is reserved.</string>
     <string name="home_supporting_text">Live train information. A separate local booking demo.</string>
     <string name="swap_stations">Swap stations ↕</string>
@@ -93,4 +98,10 @@
     <string name="pnr_copied">Demo PNR copied</string>
     <string name="show_receipt">Receipt and fare details ▾</string>
     <string name="hide_receipt">Hide receipt details ▴</string>
+    <string name="remove_ticket_from_list">Remove from list</string>
+    <string name="remove_ticket_title">Remove this ticket from your list?</string>
+    <string name="remove_ticket_message">This only hides the ticket from the list. It does not cancel the local demo reservation. The PNR and receipt remain available through Find Booking.</string>
+    <string name="ticket_hidden">Ticket removed from this list. Its booking and receipt are retained.</string>
+    <string name="remove_ticket_failed">Ticket could not be removed</string>
+    <string name="remove_ticket_failed_message">The ticket could not be hidden. Please retry.</string>
 </resources>

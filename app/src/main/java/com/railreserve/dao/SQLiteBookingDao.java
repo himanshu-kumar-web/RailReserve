@@ -12,6 +12,7 @@ import com.railreserve.model.SeatStatus;
 import com.railreserve.model.TravelClass;
 import java.security.SecureRandom;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -44,7 +45,10 @@ public final class SQLiteBookingDao implements BookingDao {
                     if (request.getFareSnapshot() != null) {
                         com.railreserve.model.FareSnapshot saved = existing.getFareSnapshot(), supplied = request.getFareSnapshot();
                         if (saved == null || saved.getAmountPaise() != supplied.getAmountPaise()
-                                || !saved.getRetrievedAt().equals(supplied.getRetrievedAt()))
+                                || !saved.getRetrievedAt().equals(supplied.getRetrievedAt())
+                                || !java.util.Objects.equals(saved.getAvailability(), supplied.getAvailability())
+                                || !java.util.Objects.equals(saved.getStatusType(), supplied.getStatusType())
+                                || !java.util.Objects.equals(saved.getAvailabilityRetrievedAt(), supplied.getAvailabilityRetrievedAt()))
                             throw new IllegalArgumentException("This checkout already belongs to another captured quote.");
                         supplied.requireContext(saved.getNumber(),saved.getFrom(),saved.getTo(),saved.getDate(),saved.getClassCode(),saved.getQuota());
                     }
@@ -54,6 +58,10 @@ public final class SQLiteBookingDao implements BookingDao {
                     db.setTransactionSuccessful();
                     return existing;
                 }
+            }
+            if (request.getFareSnapshot() != null) {
+                request.getFareSnapshot().requireFresh();
+                request.getFareSnapshot().requireAvailableForBooking();
             }
             // One shared allocation implementation for legacy requests and the new checkout.
             Booking booking = insertBooking(db, request);
@@ -138,6 +146,18 @@ public final class SQLiteBookingDao implements BookingDao {
         return bookings;
     }
 
+    @Override public List<Booking> getVisibleBookings(LocalDate today) {
+        if (today == null) throw new IllegalArgumentException("A journey date is required.");
+        List<Booking> bookings = new ArrayList<>();
+        SQLiteDatabase db = helper.getReadableDatabase();
+        try (Cursor c = db.rawQuery(bookingSelect()
+                + " WHERE b.hidden_from_list=0 AND j.journey_date>=? ORDER BY b.booked_at DESC,b.booking_id DESC",
+                new String[]{today.toString()})) {
+            while (c.moveToNext()) bookings.add(readBooking(db, c));
+        }
+        return bookings;
+    }
+
     @Override public Booking findBookingByPnr(String pnr) {
         return find(helper.getReadableDatabase(), "b.pnr=?", pnr);
     }
@@ -180,6 +200,15 @@ public final class SQLiteBookingDao implements BookingDao {
                     new String[]{Long.toString(bookingId)});
             db.setTransactionSuccessful();
         } finally { db.endTransaction(); }
+    }
+
+    @Override public void hideBookingFromList(long bookingId) {
+        ContentValues values = new ContentValues();
+        values.put("hidden_from_list", 1);
+        if (helper.getWritableDatabase().update("bookings", values,
+                "booking_id=? AND hidden_from_list=0", new String[]{Long.toString(bookingId)}) != 1) {
+            throw new IllegalStateException("This booking is already hidden or no longer exists.");
+        }
     }
 
     private Booking readBooking(SQLiteDatabase db, String where, String[] args) {

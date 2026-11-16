@@ -73,6 +73,7 @@ public final class BookingSubmissionViewModel extends ViewModel {
         if (amountPaise < 0) throw new IllegalArgumentException("Invalid demo fare.");
         if (request.getFareSnapshot() != null) {
             request.getFareSnapshot().requireFresh();
+            request.getFareSnapshot().requireAvailableForBooking();
             if (amountPaise != request.getFareSnapshot().getAmountPaise() || request.getTravelClass() == null
                     || !request.getTravelClass().getCode().equals(request.getFareSnapshot().getClassCode()))
                 throw new IllegalArgumentException("Review the matching class and captured provider fare before payment.");

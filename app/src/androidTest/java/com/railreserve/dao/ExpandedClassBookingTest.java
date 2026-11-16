@@ -18,7 +18,9 @@ import static org.junit.Assert.*;
 @RunWith(AndroidJUnit4.class)
 public class ExpandedClassBookingTest {
     private FareSnapshot quote(String number,String from,String to,String date,TravelClass clazz,int fare) {
-        return new FareSnapshot(number,from,to,date,clazz.getCode(),"GN",fare*100L,"RailCore fare estimate",Instant.now().toString(),null,null,null,null);
+        String retrieved = Instant.now().toString();
+        return new FareSnapshot(number,from,to,date,clazz.getCode(),"GN",fare*100L,"RailCore fare estimate",retrieved,
+                "AVAILABLE 4","AVAILABLE","RailCore availability",retrieved);
     }
     private TrainSearchResult prepare(DemoPaymentTestDatabase f,FareSnapshot q) {
         return new SimulationScenarioService(new SQLiteSimulationScenarioDao(f.helper)).prepare(new SimulationRequest(q.getNumber(),"TEST FIXTURE Expanded Classes",q.getFrom(),q.getFrom(),q.getTo(),q.getTo(),q.getDate(),TravelClass.fromCode(q.getClassCode()),"22:00","06:00",0,1,q));
@@ -78,8 +80,11 @@ public class ExpandedClassBookingTest {
                 old.execSQL("CREATE VIEW fixture_confirmed AS SELECT booking_id FROM bookings WHERE booking_status='CONFIRMED'");
                 for(String table:tables) rows.put(table,rows(old,table));
             }
-            SQLiteDatabase upgraded=f.helper.getWritableDatabase(); assertEquals(6,upgraded.getVersion());
-            for(String table:tables) assertEquals(table,rows.get(table),rows(upgraded,table));
+            SQLiteDatabase upgraded=f.helper.getWritableDatabase(); assertEquals(7,upgraded.getVersion());
+            for(String table:tables) {
+                List<String> expected = "bookings".equals(table) ? withHiddenFlag(rows.get(table)) : rows.get(table);
+                assertEquals(table,expected,rows(upgraded,table));
+            }
             assertEquals(1,DatabaseUtils.longForQuery(upgraded,"PRAGMA foreign_keys",null));
             try(Cursor c=upgraded.rawQuery("PRAGMA foreign_key_check",null)) { assertFalse(c.moveToFirst()); }
             assertEquals(1,DatabaseUtils.longForQuery(upgraded,"SELECT COUNT(*) FROM fixture_confirmed",null));
@@ -99,6 +104,12 @@ public class ExpandedClassBookingTest {
             while(c.moveToNext()) { StringBuilder row=new StringBuilder(); for(int i=0;i<c.getColumnCount();i++) row.append(c.isNull(i)?"<null>":c.getString(i)).append('|'); result.add(row.toString()); }
         }
         return result;
+    }
+
+    private List<String> withHiddenFlag(List<String> rows) {
+        List<String> updated = new ArrayList<>();
+        for (String row : rows) updated.add(row + "0|");
+        return updated;
     }
 
     @Test public void failedForeignKeyValidationRollsBackTheWholeUpgrade() {

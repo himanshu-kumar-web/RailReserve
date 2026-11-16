@@ -5,6 +5,7 @@ import android.app.Instrumentation;
 import android.content.Intent;
 import android.view.View;
 import android.widget.DatePicker;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 import androidx.test.espresso.UiController;
@@ -52,6 +53,31 @@ public class LiveJourneyDeviceTest {
             assertTrue(onMain(() -> ((TextView) activity.findViewById(R.id.liveDateButton)).getText().toString())
                     .contains(tomorrow.format(DateTimeFormatter.ofPattern("EEE, d MMM yyyy", Locale.getDefault()))));
         } finally { onMain(() -> { activity.finish(); return null; }); }
+    }
+
+    @Test public void trainResultsHeaderShowsRouteDateAndSelectableDays() {
+        LocalDate selectedDate = LocalDate.now().plusDays(1);
+        Activity results = start(new Intent(instrumentation.getTargetContext(), LiveTrainResultsActivity.class)
+                .putExtra(LiveSearchActivity.EXTRA_SOURCE_CODE, "PRYJ")
+                .putExtra(LiveSearchActivity.EXTRA_SOURCE_NAME, "Prayagraj Jn.")
+                .putExtra(LiveSearchActivity.EXTRA_DESTINATION_CODE, "PRYJ")
+                .putExtra(LiveSearchActivity.EXTRA_DESTINATION_NAME, "Prayagraj Jn.")
+                .putExtra(LiveSearchActivity.EXTRA_DATE, selectedDate.toString()));
+        try {
+            assertEquals("PRYJ - Prayagraj Jn.  →  PRYJ - Prayagraj Jn.",
+                    onMain(() -> ((TextView) results.findViewById(R.id.liveResultsHeading)).getText().toString()));
+            assertEquals(selectedDate.format(DateTimeFormatter.ofPattern("d MMM, EEE", Locale.getDefault())),
+                    onMain(() -> ((TextView) results.findViewById(R.id.liveResultsSubtitle)).getText().toString()));
+            assertTrue(onMain(() -> ((LinearLayout) results.findViewById(R.id.liveDateTabs)).getChildCount() > 1));
+            onMain(() -> {
+                ((LinearLayout) results.findViewById(R.id.liveDateTabs)).getChildAt(0).performClick();
+                return null;
+            });
+            assertEquals(LocalDate.now().format(DateTimeFormatter.ofPattern("d MMM, EEE", Locale.getDefault())),
+                    onMain(() -> ((TextView) results.findViewById(R.id.liveResultsSubtitle)).getText().toString()));
+            assertEquals(View.GONE, ((Integer) onMain(
+                    () -> results.findViewById(R.id.liveResultsProgress).getVisibility())).intValue());
+        } finally { onMain(() -> { results.finish(); return null; }); }
     }
 
     /** Opt-in: one live route search and, if trains exist, one schedule. No fare/seat requests. */

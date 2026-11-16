@@ -58,7 +58,8 @@ public class LiveFailureDeviceTest {
     @Test public void selectedLiveCardReusesCheckoutWithFailureCancellationAndRetry() throws Exception {
         assumeTrue(BuildConfig.LIVE_FARE_ENABLED && BuildConfig.LIVE_AVAILABILITY_ENABLED);
         server.handler = path -> new LocalBackendFixture.Response(200,
-                path.contains("/fare") || path.contains("/availability") ? LocalBackendFixture.enquiry("12345","AAA","BBB",LocalDate.now().toString(),"2A",path.contains("/fare"),245.0)
+                path.contains("/fare") ? LocalBackendFixture.enquiry("12345","AAA","BBB",LocalDate.now().toString(),"2A",true,245.0)
+                : path.contains("/availability") ? LocalBackendFixture.availableEnquiry("12345","AAA","BBB",LocalDate.now().toString(),"2A")
                 : path.contains("/schedule") ? "{\"success\":true,\"data\":{\"train\":{\"number\":\"12345\",\"name\":\"Fixture\",\"classes\":[\"2A\"]},\"stops\":[]}}"
                 : "{\"success\":true,\"data\":{\"from\":{\"code\":\"AAA\"},\"to\":{\"code\":\"BBB\"},\"count\":1,\"trains\":["
                         + "{\"number\":\"12345\",\"name\":\"TEST FIXTURE Selected Express\",\"from\":{\"departure\":\"22:00\",\"day\":0},"
@@ -95,7 +96,8 @@ public class LiveFailureDeviceTest {
                 card.findViewById(R.id.classAvailabilityCheck).performClick();
                 return null;
             });
-            waitFor(() -> details.findViewById(R.id.detailsClasses).findViewWithTag("2A").findViewById(R.id.classDemoBook).isEnabled() && ((TextView) details.findViewById(R.id.detailsClasses).findViewWithTag("2A").findViewById(R.id.classAvailability)).getText().toString().contains("GNWL107/WL62"));
+            waitFor(() -> details.findViewById(R.id.detailsClasses).findViewWithTag("2A").findViewById(R.id.classDemoBook).isEnabled()
+                    && ((TextView) details.findViewById(R.id.detailsClasses).findViewWithTag("2A").findViewById(R.id.classAvailability)).getText().toString().contains("AVAILABLE 4"));
             main(() -> {
                 View card = details.findViewById(R.id.detailsClasses).findViewWithTag("2A");
                 card.findViewById(R.id.classDemoBook).performClick(); card.findViewById(R.id.classDemoBook).performClick();
@@ -106,6 +108,7 @@ public class LiveFailureDeviceTest {
             activities.add(booking);
             assertEquals(1, monitor.getHits());
             waitFor(() -> booking.findViewById(R.id.confirmBookingButton).isEnabled());
+            assertEquals(View.GONE, booking.findViewById(R.id.bookingSeatPicker).getVisibility());
             assertEquals("12345", booking.getIntent().getStringExtra(com.railreserve.ui.BookingActivity.EXTRA_TRAIN_NUMBER));
             assertTrue(main(() -> text(booking,R.id.bookingFareSummary)).contains("245.00"));
             assertEquals("2A", booking.getIntent().getStringExtra(com.railreserve.ui.BookingActivity.EXTRA_CLASS));
@@ -147,8 +150,8 @@ public class LiveFailureDeviceTest {
             assertEquals(245,ticket.getFare());
             assertNotNull(ticket.getFareSnapshot());
             assertTrue(com.railreserve.ui.PaymentReceiptText.receipt(ticket).contains("245.00"));
-            assertTrue(com.railreserve.ui.PaymentReceiptText.receipt(ticket).contains("WAITLIST"));
-            assertEquals("GNWL107/WL62",ticket.getFareSnapshot().getAvailability());
+            assertTrue(com.railreserve.ui.PaymentReceiptText.receipt(ticket).contains("AVAILABLE"));
+            assertEquals("AVAILABLE 4",ticket.getFareSnapshot().getAvailability());
             assertEquals(ticket.getId(), bookingService.findBookingByPnr(ticket.getPnr()).getId());
             bookingService.cancelBooking(ticket.getId());
             assertEquals("SIMULATED_REFUNDED", bookingService.findBookingByPnr(ticket.getPnr()).getPayment().getRefundStatus());

@@ -22,7 +22,7 @@ public class DemoPaymentViewModelTest {
         ViewModelStore store=main(()->{ ViewModelStore value=new ViewModelStore(); value.put("quote",model); return value; });
         try {
             main(()->{
-                for(int invalid=0;invalid<3;invalid++) {
+                for(int invalid=0;invalid<4;invalid++) {
                     com.railreserve.model.FareSnapshot quote=new com.railreserve.model.FareSnapshot("15004","GKP","PRYJ",java.time.LocalDate.now().toString(),
                             invalid==1 ? "1A" : "2A","GN",87500,"RailCore fare estimate",java.time.Instant.now().minusSeconds(invalid==0 ? 61 : 0).toString(),null,null,null,null);
                     com.railreserve.model.BookingRequest draft=new com.railreserve.model.BookingRequest(1,1,com.railreserve.model.TravelClass.AC_TWO_TIER,"Passenger",25,"Other",null,null,quote);
@@ -30,7 +30,15 @@ public class DemoPaymentViewModelTest {
                     assertThrows(IllegalArgumentException.class,()->model.review(draft,amount,"Invalid quote"));
                     assertNull(model.getState().getValue()); assertNull(model.getCheckoutReference());
                 }
-                com.railreserve.model.FareSnapshot fresh=new com.railreserve.model.FareSnapshot("15004","GKP","PRYJ",java.time.LocalDate.now().toString(),"2A","GN",87500,"RailCore fare estimate",java.time.Instant.now().toString(),null,null,null,null);
+                String now=java.time.Instant.now().toString();
+                for(String status:new String[]{"WAITLIST","RAC"}) {
+                    com.railreserve.model.FareSnapshot blocked=new com.railreserve.model.FareSnapshot("15004","GKP","PRYJ",
+                            java.time.LocalDate.now().toString(),"2A","GN",87500,"RailCore fare estimate",now,
+                            status.equals("RAC") ? "RAC 12" : "GNWL107/WL62",status,"RailCore availability",now);
+                    assertThrows(IllegalArgumentException.class,()->model.review(new com.railreserve.model.BookingRequest(1,1,
+                            com.railreserve.model.TravelClass.AC_TWO_TIER,"Passenger",25,"Other",null,null,blocked),87500,"Blocked quote"));
+                }
+                com.railreserve.model.FareSnapshot fresh=new com.railreserve.model.FareSnapshot("15004","GKP","PRYJ",java.time.LocalDate.now().toString(),"2A","GN",87500,"RailCore fare estimate",now,"AVAILABLE 4","AVAILABLE","RailCore availability",now);
                 model.review(new com.railreserve.model.BookingRequest(1,1,com.railreserve.model.TravelClass.AC_TWO_TIER,"Passenger",25,"Other",null,null,fresh),87500,"Fresh quote");
                 assertEquals(BookingSubmissionViewModel.Stage.REVIEW,model.getState().getValue().getStage()); assertEquals(87500,model.getAmountPaise());
                 return null;
@@ -40,7 +48,7 @@ public class DemoPaymentViewModelTest {
     @Test public void savedQuoteSurvivesRecoveryAndExplicitPayUsesTheSameAmount() throws Exception {
         try (DemoPaymentTestDatabase fixture = new DemoPaymentTestDatabase()) {
             String date=java.time.LocalDate.now().plusDays(1).toString(), time=java.time.Instant.now().toString();
-            com.railreserve.model.FareSnapshot quote=new com.railreserve.model.FareSnapshot("15004","GKP","PRYJ",date,"2A","GN",24500,"RailCore fare estimate",time,"GNWL107/WL62","WAITLIST","RailCore availability",time);
+            com.railreserve.model.FareSnapshot quote=new com.railreserve.model.FareSnapshot("15004","GKP","PRYJ",date,"2A","GN",24500,"RailCore fare estimate",time,"AVAILABLE 4","AVAILABLE","RailCore availability",time);
             com.railreserve.model.TrainSearchResult scenario=new com.railreserve.service.SimulationScenarioService(new com.railreserve.dao.SQLiteSimulationScenarioDao(fixture.helper))
                     .prepare(new com.railreserve.model.SimulationRequest("15004","TEST FIXTURE","GKP","Gorakhpur","PRYJ","Prayagraj",date,com.railreserve.model.TravelClass.AC_TWO_TIER,"20:00","08:00",0,1,quote));
             com.railreserve.model.BookingRequest draft=new com.railreserve.model.BookingRequest(scenario.getJourneyId(),fixture.service.getAvailableSeats(scenario.getJourneyId(),"2A").get(0).getId(),com.railreserve.model.TravelClass.AC_TWO_TIER,"Passenger",25,"Other",null,null,quote);
@@ -61,7 +69,7 @@ public class DemoPaymentViewModelTest {
                 assertEquals(24500,next.getAmountPaise()); assertEquals(first.getCheckoutReference(),next.getCheckoutReference());
                 main(()->{ next.pay(fixture.service,BookingSubmissionViewModel.Simulation.SUCCESS); return null; }); waitStage(next,BookingSubmissionViewModel.Stage.COMPLETE);
                 Booking result=main(()->next.getState().getValue().getBooking()); assertEquals(245,result.getFare());
-                assertEquals(24500,result.getPayment().getAmountPaise()); assertEquals("GNWL107/WL62",result.getFareSnapshot().getAvailability());
+                assertEquals(24500,result.getPayment().getAmountPaise()); assertEquals("AVAILABLE 4",result.getFareSnapshot().getAvailability());
             } finally { main(()->{ store.clear(); return null; }); }
         }
     }

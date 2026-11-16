@@ -1,11 +1,12 @@
 package com.railreserve.database;
 
 import android.content.Context;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
 public final class DatabaseHelper extends SQLiteOpenHelper {
-    private static final String DB_NAME="railreserve.db"; private static final int VERSION=6;
+    private static final String DB_NAME="railreserve.db"; private static final int VERSION=7;
     public DatabaseHelper(Context context){super(context.getApplicationContext(),DB_NAME,null,VERSION);}
     @Override public void onConfigure(SQLiteDatabase db){
         super.onConfigure(db);
@@ -30,6 +31,15 @@ public final class DatabaseHelper extends SQLiteOpenHelper {
         if(oldVersion<4) createSimulationScenarios(db);
         if(oldVersion<5) createFareSnapshots(db);
         if(oldVersion<6) TravelClassMigration.expand(db);
+        if(oldVersion<7) addBookingListVisibilityColumn(db);
+    }
+    private void addBookingListVisibilityColumn(SQLiteDatabase db) {
+        try (Cursor columns = db.rawQuery("PRAGMA table_info(bookings)", null)) {
+            while (columns.moveToNext()) {
+                if ("hidden_from_list".equals(columns.getString(columns.getColumnIndexOrThrow("name")))) return;
+            }
+        }
+        db.execSQL("ALTER TABLE bookings ADD COLUMN hidden_from_list INTEGER NOT NULL DEFAULT 0 CHECK(hidden_from_list IN (0,1))");
     }
     private void createFareSnapshots(SQLiteDatabase db) {
         db.execSQL("CREATE TABLE booking_fare_snapshots (booking_id INTEGER PRIMARY KEY REFERENCES bookings(booking_id), "
@@ -68,7 +78,7 @@ public final class DatabaseHelper extends SQLiteOpenHelper {
                 + "(refund_status='SIMULATED_REFUNDED' AND refunded_at IS NOT NULL)))");
     }
     private void createBookingsSchema(SQLiteDatabase db){
-        db.execSQL("CREATE TABLE IF NOT EXISTS bookings (booking_id INTEGER PRIMARY KEY AUTOINCREMENT, pnr TEXT NOT NULL UNIQUE, seat_id INTEGER NOT NULL REFERENCES seats(seat_id), passenger_name TEXT NOT NULL CHECK(length(trim(passenger_name)) BETWEEN 2 AND 80), passenger_age INTEGER NOT NULL CHECK(passenger_age BETWEEN 1 AND 120), passenger_gender TEXT NOT NULL CHECK(passenger_gender IN ('Female','Male','Other')), travel_class TEXT NOT NULL CHECK(travel_class IN ('SL','3A','2A','1A','3E','CC','EC','2S')), fare INTEGER NOT NULL CHECK(fare>=0), booking_status TEXT NOT NULL CHECK(booking_status IN ('CONFIRMED','CANCELLED')), booked_at TEXT NOT NULL, cancelled_at TEXT)");
+        db.execSQL("CREATE TABLE IF NOT EXISTS bookings (booking_id INTEGER PRIMARY KEY AUTOINCREMENT, pnr TEXT NOT NULL UNIQUE, seat_id INTEGER NOT NULL REFERENCES seats(seat_id), passenger_name TEXT NOT NULL CHECK(length(trim(passenger_name)) BETWEEN 2 AND 80), passenger_age INTEGER NOT NULL CHECK(passenger_age BETWEEN 1 AND 120), passenger_gender TEXT NOT NULL CHECK(passenger_gender IN ('Female','Male','Other')), travel_class TEXT NOT NULL CHECK(travel_class IN ('SL','3A','2A','1A','3E','CC','EC','2S')), fare INTEGER NOT NULL CHECK(fare>=0), booking_status TEXT NOT NULL CHECK(booking_status IN ('CONFIRMED','CANCELLED')), booked_at TEXT NOT NULL, cancelled_at TEXT, hidden_from_list INTEGER NOT NULL DEFAULT 0 CHECK(hidden_from_list IN (0,1)))");
         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS idx_one_confirmed_booking_per_seat ON bookings(seat_id) WHERE booking_status='CONFIRMED'");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_bookings_booked_at ON bookings(booked_at DESC)");
     }

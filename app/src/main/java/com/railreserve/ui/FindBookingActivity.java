@@ -137,7 +137,11 @@ public final class FindBookingActivity extends AppCompatActivity {
                 + "Departure  " + booking.getDeparture() + "     Arrival  " + booking.getArrival()
                 + (booking.getArrivalDayOffset() > 0 ? " (next day)" : ""));
         passenger.setText(booking.getPassengerName() + "  ·  " + booking.getAge() + " years  ·  " + booking.getGender());
-        seat.setText(booking.getTravelClass().getLabel() + "  ·  " + booking.getCoach() + " " + booking.getSeatNumber());
+        seat.setText(booking.getFareSnapshot() == null
+                ? booking.getTravelClass().getLabel() + "  ·  " + booking.getCoach() + " " + booking.getSeatNumber()
+                : booking.getTravelClass().getLabel() + "  ·  Provider status: "
+                        + booking.getFareSnapshot().getStatusType() + " ("
+                        + booking.getFareSnapshot().getAvailability() + ") · No railway seat reserved.");
         fare.setText((booking.getFareSnapshot() == null ? "Local demo fare: " : "Captured estimate: ") + PaymentReceiptText.amount(Math.multiplyExact((long) booking.getFare(), 100L)));
         cancelledNote.setVisibility(cancelled ? View.VISIBLE : View.GONE);
         resultCard.setVisibility(View.VISIBLE);

@@ -130,5 +130,17 @@
             android:lineSpacingExtra="4dp"
             android:textColor="@color/brand_dark"
             android:textSize="13sp" />
+        <Button
+            android:id="@+id/downloadTicketPdf"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:background="@drawable/button_primary"
+            android:backgroundTint="@null"
+            android:minHeight="52dp"
+            android:text="@string/download_ticket_pdf"
+            android:textAllCaps="false"
+            android:textColor="@color/white"
+            android:textStyle="bold" />
     </LinearLayout>
 </ScrollView>

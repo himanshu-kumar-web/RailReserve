@@ -9,6 +9,7 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -20,6 +21,7 @@ import com.railreserve.service.BookingServiceFactory;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import android.widget.Toast;
 
 public final class AppSectionActivity extends AppCompatActivity {
     public static final String EXTRA_SECTION = "app_section";
@@ -42,6 +44,7 @@ public final class AppSectionActivity extends AppCompatActivity {
     private boolean destroyed;
     private int ticketGeneration;
     private boolean openingChild;
+    private boolean hidingTicket;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -62,7 +65,7 @@ public final class AppSectionActivity extends AppCompatActivity {
         ticketStatus = findViewById(R.id.ticketStatus);
         ticketProgress = findViewById(R.id.ticketProgress);
         bookingService = BookingServiceFactory.create(getApplicationContext());
-        ticketAdapter = new BookingAdapter(this, null);
+        ticketAdapter = new BookingAdapter(this, null, this::confirmHideTicket);
         findViewById(R.id.openMyBookings).setOnClickListener(view ->
                 openChild(MyBookingsActivity.class));
         findViewById(R.id.openFindBooking).setOnClickListener(view ->
@@ -138,7 +141,7 @@ public final class AppSectionActivity extends AppCompatActivity {
         ticketStatus.setText(R.string.tickets_loading);
         ticketExecutor.execute(() -> {
             try {
-                List<Booking> bookings = bookingService.getBookings();
+                List<Booking> bookings = bookingService.getVisibleBookings();
                 runOnUiThread(() -> {
                     if (destroyed || generation != ticketGeneration || !SECTION_TICKETS.equals(currentSection)) return;
                     ticketProgress.setVisibility(View.GONE);
@@ -169,6 +172,43 @@ public final class AppSectionActivity extends AppCompatActivity {
                     ticketCards.setVisibility(View.GONE);
                     ticketStatus.setText(R.string.tickets_load_failed);
                     ticketStatus.setVisibility(View.VISIBLE);
+                });
+            }
+        });
+    }
+
+    private void confirmHideTicket(Booking booking) {
+        if (hidingTicket || destroyed) return;
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.remove_ticket_title)
+                .setMessage(R.string.remove_ticket_message)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.remove_ticket_from_list, (dialog, which) -> hideTicket(booking))
+                .show();
+    }
+
+    private void hideTicket(Booking booking) {
+        if (hidingTicket || destroyed) return;
+        hidingTicket = true;
+        ticketExecutor.execute(() -> {
+            try {
+                bookingService.hideBookingFromList(booking.getId());
+                runOnUiThread(() -> {
+                    if (destroyed) return;
+                    hidingTicket = false;
+                    Toast.makeText(this, R.string.ticket_hidden, Toast.LENGTH_SHORT).show();
+                    loadTicketBookings();
+                });
+            } catch (Exception exception) {
+                runOnUiThread(() -> {
+                    if (destroyed) return;
+                    hidingTicket = false;
+                    new AlertDialog.Builder(this)
+                            .setTitle(R.string.remove_ticket_failed)
+                            .setMessage(exception.getMessage() == null
+                                    ? getString(R.string.remove_ticket_failed_message) : exception.getMessage())
+                            .setPositiveButton(android.R.string.ok, null)
+                            .show();
                 });
             }
         });

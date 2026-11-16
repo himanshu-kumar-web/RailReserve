@@ -19,15 +19,25 @@ public final class BookingAdapter extends BaseAdapter {
         void onCancel(Booking booking);
     }
 
+    public interface RemoveListener {
+        void onRemove(Booking booking);
+    }
+
     private final LayoutInflater inflater;
     private final List<Booking> bookings = new ArrayList<>();
     private final CancelListener listener;
+    private final RemoveListener removeListener;
     private boolean cancellationInProgress;
     private final java.util.Set<Long> expandedReceipts = new java.util.HashSet<>();
 
     public BookingAdapter(Context context, CancelListener listener) {
+        this(context, listener, null);
+    }
+
+    public BookingAdapter(Context context, CancelListener listener, RemoveListener removeListener) {
         inflater = LayoutInflater.from(context);
         this.listener = listener;
+        this.removeListener = removeListener;
     }
 
     public void setBookings(List<Booking> values) {
@@ -73,9 +83,16 @@ public final class BookingAdapter extends BaseAdapter {
                         + booking.getArrival() + (booking.getArrivalDayOffset() > 0 ? " (+1 day)" : ""));
         ((TextView) view.findViewById(R.id.bookingPassenger)).setText(
                 "Passenger  |  " + booking.getPassengerName() + ", age " + booking.getAge());
+        String classFare = booking.getTravelClass().getLabel();
+        if (booking.getFareSnapshot() == null) {
+            classFare += "  |  " + booking.getCoach() + " Seat " + booking.getSeatNumber()
+                    + "  |  Local demo fare ";
+        } else {
+            classFare += "  |  Live status: " + booking.getFareSnapshot().getStatusType()
+                    + " (" + booking.getFareSnapshot().getAvailability() + ")  |  No railway seat reserved  |  Captured estimate ";
+        }
         ((TextView) view.findViewById(R.id.bookingClassFare)).setText(
-                booking.getTravelClass().getLabel() + "  |  " + booking.getCoach() + " Seat "
-                        + booking.getSeatNumber() + (booking.getFareSnapshot() == null ? " | Local demo fare " : " | Captured estimate ") + PaymentReceiptText.amount(booking.getFare()*100L));
+                classFare + PaymentReceiptText.amount(booking.getFare()*100L));
 
         TextView status = view.findViewById(R.id.bookingStatus);
         status.setText("Local demo: " + booking.getStatus());
@@ -87,6 +104,9 @@ public final class BookingAdapter extends BaseAdapter {
         cancelButton.setEnabled(confirmed && listener != null && !cancellationInProgress);
         cancelButton.setText(cancellationInProgress ? "Cancelling..." : "Cancel booking");
         cancelButton.setOnClickListener(listener == null ? null : clicked -> listener.onCancel(booking));
+        Button removeButton = view.findViewById(R.id.removeBookingButton);
+        removeButton.setVisibility(removeListener == null ? View.GONE : View.VISIBLE);
+        removeButton.setOnClickListener(removeListener == null ? null : clicked -> removeListener.onRemove(booking));
         return view;
     }
 }
