@@ -1,26 +1,4 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-
-    <path
-        android:fillColor="#F4F8FF"
-        android:pathData="M28,34h52a9,9 0,0 1,9 9v4a7,7 0,0 0,0 14v4a9,9 0,0 1,-9 9h-52a9,9 0,0 1,-9 -9v-4a7,7 0,0 0,0 -14v-4a9,9 0,0 1,9 -9z" />
-
-    <path
-        android:fillColor="#0D4C92"
-        android:pathData="M30,44h8v8h-8zM40,44h8v8h-8zM30,54h18v2h-18zM30,59h13v2h-13z" />
-
-    <path
-        android:fillColor="#0D4C92"
-        android:pathData="M58,40h2v4h-2zM58,47h2v4h-2zM58,54h2v4h-2zM58,61h2v4h-2z" />
-
-    <path
-        android:fillColor="#22A06B"
-        android:pathData="M76,29a13,13 0,1 1,0 26a13,13 0,1 1,0 -26z" />
-
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M69,41l3,-3l3,3l6,-6l3,3l-9,9z" />
-</vector>
+<?xml version="1.0" encoding="utf-8"?>
+<inset xmlns:android="http://schemas.android.com/apk/res/android" android:inset="6dp">
+    <bitmap android:src="@drawable/railreserve_logo" android:gravity="fill" />
+</inset>
