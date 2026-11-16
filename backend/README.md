@@ -17,7 +17,7 @@ npm run lint
 npm start
 ```
 
-Set `RAILCORE_API_KEY` and, optionally, `RAILCORE_BASE_URL=https://ir.railcore.tech/v1` in the private `.env`. Never add the key to source control or the Android app. The start command enables Node's environment-proxy support for configured `HTTP_PROXY` and `HTTPS_PROXY` variables.
+Set `RAILCORE_API_KEY` in the private `.env`. You can optionally add `RAILCORE_API_KEY_2` and `RAILCORE_API_KEY_3` as fallback keys for the same RailCore service. When a key receives HTTP 429, the backend retries that request with the next configured key and continues using the key that succeeds. It does not rotate keys for other errors. Keep every key private; never add keys to source control or the Android app. `RAILCORE_BASE_URL` can optionally override the provider URL. The start command enables Node's environment-proxy support for configured `HTTP_PROXY` and `HTTPS_PROXY` variables.
 
 Create a RailCore key with the `stations:read`, `journeys:read`, and `schedule:read` scopes for the app's live search. Fare and availability compatibility endpoints additionally require `fares:read` and `availability:read`. RailCore bills credits per operation (documented as 1 for station search, 5 for route search, and 2 for schedule); station autocomplete therefore uses provider credits. Check your plan and balance before enabling live searches.
 
@@ -28,6 +28,8 @@ The backend listens on `0.0.0.0:3000` by default. `GET /health` checks only the 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `RAILCORE_API_KEY` | required | Private RailCore API key with the scopes needed by enabled endpoints. |
+| `RAILCORE_API_KEY_2` | optional | First fallback key; used after a provider HTTP 429 response. |
+| `RAILCORE_API_KEY_3` | optional | Second fallback key; used if the prior configured keys return HTTP 429. |
 | `RAILCORE_BASE_URL` | `https://ir.railcore.tech/v1` | HTTPS RailCore API base URL. |
 | `PORT` | `3000` | HTTP listener port. |
 | `REQUEST_TIMEOUT_MS` | `20000` | Upstream request timeout, accepted range 500–30000 ms. |

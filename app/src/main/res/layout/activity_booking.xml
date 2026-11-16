@@ -12,6 +12,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical">
+        <include layout="@layout/view_screen_back" />
         <TextView
             android:id="@+id/bookingSimulationNotice"
             android:layout_width="match_parent"

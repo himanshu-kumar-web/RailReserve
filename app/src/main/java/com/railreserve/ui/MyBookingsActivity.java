@@ -51,6 +51,7 @@ public class MyBookingsActivity extends AppCompatActivity implements BookingAdap
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         setContentView(R.layout.activity_my_bookings);
+        BackNavigation.bind(this);
         View root = findViewById(R.id.bookingsRoot);
         ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
