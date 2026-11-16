@@ -1,8 +1,9 @@
 import { createApp } from './app.js';
 import { RailCoreClient } from './provider/railCoreClient.js';
 
-if (!process.env.RAILCORE_API_KEY?.trim()) {
-  process.stderr.write('RAILCORE_API_KEY is required to start the RailReserve backend.\n');
+if (![process.env.RAILCORE_API_KEY, process.env.RAILCORE_API_KEY_2, process.env.RAILCORE_API_KEY_3]
+  .some((key) => key?.trim())) {
+  process.stderr.write('At least one RailCore API key is required to start the RailReserve backend.\n');
   process.exitCode = 1;
 } else {
   const port = Number(process.env.PORT || 3000);

@@ -8,6 +8,7 @@
     <string name="simulation_preparing">Preparing your separate local demo inventory…</string>
     <string name="simulation_prepare_failed">Could not prepare this local simulation. Please retry.</string>
     <string name="simulation_back">Back to live results</string>
+    <string name="navigate_back">‹  Back</string>
     <string name="simulation_card_notice">Live fares and seat availability are unavailable. Simulate with fictional local inventory.</string>
     <string name="simulation_inventory_notice">Simulate using fictional local fares and seats. No real ticket or payment.</string>
     <string name="simulation_timetable_unsupported">Demo unavailable: timetable needs a known same-day or next-day arrival.</string>

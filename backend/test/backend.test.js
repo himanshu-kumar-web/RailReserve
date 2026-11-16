@@ -257,6 +257,43 @@ test('provider request uses RailCore HTTPS URL and API-key header without exposi
   assert.equal(request.options.headers.Authorization, undefined);
 });
 
+test('provider retries HTTP 429 with the next key and keeps using the successful key', async () => {
+  const usedKeys = [];
+  const client = new RailCoreClient({ apiKeys: ['first-key', 'second-key', 'third-key'], fetchImpl: async (_url, options) => {
+    usedKeys.push(options.headers['X-RailCore-Key']);
+    return options.headers['X-RailCore-Key'] === 'first-key'
+      ? { ok: false, status: 429 }
+      : { ok: true, json: async () => ({ success: true, data: [] }) };
+  } });
+
+  await client.get('stations/search');
+  await client.get('stations/search');
+
+  assert.deepEqual(usedKeys, ['first-key', 'second-key', 'second-key']);
+});
+
+test('provider returns rate-limit error after all configured keys return HTTP 429', async () => {
+  const usedKeys = [];
+  const client = new RailCoreClient({ apiKeys: ['first-key', 'second-key', 'third-key'], fetchImpl: async (_url, options) => {
+    usedKeys.push(options.headers['X-RailCore-Key']);
+    return { ok: false, status: 429 };
+  } });
+
+  await assert.rejects(client.get('stations/search'), (error) => error.code === 'PROVIDER_RATE_LIMITED');
+  assert.deepEqual(usedKeys, ['first-key', 'second-key', 'third-key']);
+});
+
+test('provider does not switch keys for errors other than HTTP 429', async () => {
+  const usedKeys = [];
+  const client = new RailCoreClient({ apiKeys: ['first-key', 'second-key', 'third-key'], fetchImpl: async (_url, options) => {
+    usedKeys.push(options.headers['X-RailCore-Key']);
+    return { ok: false, status: 403 };
+  } });
+
+  await assert.rejects(client.get('stations/search'), (error) => error.code === 'PROVIDER_ACCESS_DENIED');
+  assert.deepEqual(usedKeys, ['first-key']);
+});
+
 test('missing key and timeout have distinct safe errors', async () => {
   const missing = new RailCoreClient({ apiKey: '' });
   await assert.rejects(missing.get('x'), (error) => error.code === 'PROVIDER_NOT_CONFIGURED');

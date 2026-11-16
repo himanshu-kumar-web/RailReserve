@@ -201,7 +201,7 @@ A typical user flow in the project is as follows:
 - JDK 17 or later
 - Node.js 24.5 or later
 - npm
-- Valid RailCore API key for live backend access
+- At least one RailCore API key for live backend access; two optional keys can be configured as HTTP 429 fallbacks
 
 ### Android Build
 
@@ -227,6 +227,7 @@ npm start
 ```
 
 The backend starts on port 3000 and exposes APIs used by the Android client.
+Set `RAILCORE_API_KEY` in `backend\.env`. Optionally set `RAILCORE_API_KEY_2` and `RAILCORE_API_KEY_3` for fallback. On HTTP 429 from RailCore, the backend retries the request using the next configured key; it does not switch keys for other errors. Keep all keys in the private backend environment and never commit them.
 
 ## 13. Testing
 

@@ -46,6 +46,7 @@ public final class AppSectionActivity extends AppCompatActivity {
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         setContentView(R.layout.activity_app_section);
+        BackNavigation.bind(this);
         View root = findViewById(R.id.appSectionRoot);
         ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());

@@ -71,6 +71,7 @@ public class BookingActivity extends AppCompatActivity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         setContentView(R.layout.activity_booking);
+        BackNavigation.bind(this);
         Object quote = getIntent().getSerializableExtra(EXTRA_FARE_SNAPSHOT);
         fareSnapshot = quote instanceof com.railreserve.model.FareSnapshot ? (com.railreserve.model.FareSnapshot) quote : null;
         boolean simulation = getIntent().getBooleanExtra(EXTRA_LIVE_SIMULATION, false);

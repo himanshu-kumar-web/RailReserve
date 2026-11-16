@@ -10,6 +10,7 @@
     android:paddingTop="16dp"
     android:paddingEnd="16dp"
     android:paddingBottom="12dp">
+    <include layout="@layout/view_screen_back" />
     <com.railreserve.ui.BoundedHeaderScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

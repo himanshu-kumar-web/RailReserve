@@ -49,6 +49,7 @@ public class TrainResultsActivity extends AppCompatActivity {
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         setContentView(R.layout.activity_train_results);
+        BackNavigation.bind(this);
         View root = findViewById(R.id.resultsRoot);
         ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
