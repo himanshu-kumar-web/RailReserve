@@ -106,24 +106,31 @@
                     android:textSize="16sp"
                     android:textStyle="bold" />
             </LinearLayout>
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:text="AVAILABLE SEAT"
-                android:textColor="@color/ink"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-            <Spinner
-                android:id="@+id/seatSpinner"
+            <LinearLayout
+                android:id="@+id/bookingSeatPicker"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:background="@drawable/booking_input_background"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:popupBackground="@color/surface"
-                android:minHeight="54dp" />
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="AVAILABLE DEMO SEAT"
+                    android:textColor="@color/ink"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+                <Spinner
+                    android:id="@+id/seatSpinner"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/booking_input_background"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:popupBackground="@color/surface"
+                    android:minHeight="54dp" />
+            </LinearLayout>
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

@@ -17,6 +17,7 @@ public final class SimulationScenarioService {
         else {
             request.getFareSnapshot().requireContext(request.getNumber(),request.getSourceCode(),request.getDestinationCode(),request.getDate(),request.getTravelClass().getCode(),"GN");
             request.getFareSnapshot().requireFresh();
+            request.getFareSnapshot().requireAvailableForBooking();
         }
         return dao.getOrCreate(request);
     }

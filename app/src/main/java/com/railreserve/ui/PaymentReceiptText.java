@@ -15,7 +15,7 @@ public final class PaymentReceiptText {
         return "Captured fare estimate: " + amount(quote.getAmountPaise()) + " | " + quote.getClassCode() + "/" + quote.getQuota()
                 + "\n" + quote.getSource() + " | Retrieved: " + quote.getRetrievedAt()
                 + "\nProvider availability snapshot: " + (quote.getAvailability() == null ? "not checked / unavailable" : quote.getAvailability() + " (" + quote.getStatusType() + ") | " + quote.getAvailabilityRetrievedAt())
-                + "\nEstimate only; not a guaranteed date-specific railway ticket price. Local demo reservation only.";
+                + "\nEstimate only; not a guaranteed date-specific railway ticket price. Local demo reservation only; no railway seat is assigned.";
     }
     public static String receipt(Booking booking) {
         DemoPayment payment = booking.getPayment();

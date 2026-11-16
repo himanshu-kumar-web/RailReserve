@@ -16,6 +16,10 @@ import com.railreserve.adapter.LiveTrainAdapter;
 import com.railreserve.live.BackendException;
 import com.railreserve.live.LiveDataRepository;
 import com.railreserve.live.LiveTrain;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.Locale;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -47,9 +51,10 @@ public final class LiveTrainResultsActivity extends AppCompatActivity {
         sourceName = getIntent().getStringExtra(LiveSearchActivity.EXTRA_SOURCE_NAME);
         destinationCode = getIntent().getStringExtra(LiveSearchActivity.EXTRA_DESTINATION_CODE);
         destinationName = getIntent().getStringExtra(LiveSearchActivity.EXTRA_DESTINATION_NAME);
-        journeyDate = getIntent().getStringExtra(LiveSearchActivity.EXTRA_DATE);
-        ((TextView) findViewById(R.id.liveResultsHeading)).setText(label(sourceName, sourceCode) + "  →  " + label(destinationName, destinationCode));
-        ((TextView) findViewById(R.id.liveResultsSubtitle)).setText(value(journeyDate) + "  ·  RailCore via RailReserve backend");
+        journeyDate = state == null ? getIntent().getStringExtra(LiveSearchActivity.EXTRA_DATE)
+                : state.getString(LiveSearchActivity.EXTRA_DATE, getIntent().getStringExtra(LiveSearchActivity.EXTRA_DATE));
+        updateRouteHeader();
+        renderDateTabs();
         progress = findViewById(R.id.liveResultsProgress);
         status = findViewById(R.id.liveResultsStatus);
         retry = findViewById(R.id.liveResultsRetry);
@@ -71,13 +76,16 @@ public final class LiveTrainResultsActivity extends AppCompatActivity {
 
     private void loadTrains() {
         int version = requestVersion.incrementAndGet();
+        String requestedSource = sourceCode;
+        String requestedDestination = destinationCode;
+        String requestedDate = journeyDate;
         progress.setVisibility(View.VISIBLE);
         status.setVisibility(View.GONE);
         retry.setVisibility(View.GONE);
         adapter.clear();
         executor.execute(() -> {
             try {
-                List<LiveTrain> trains = repository.searchTrains(sourceCode, destinationCode, journeyDate);
+                List<LiveTrain> trains = repository.searchTrains(requestedSource, requestedDestination, requestedDate);
                 runOnUiThread(() -> {
                     if (destroyed || requestVersion.get() != version) return;
                     progress.setVisibility(View.GONE);
@@ -97,6 +105,75 @@ public final class LiveTrainResultsActivity extends AppCompatActivity {
         });
     }
 
+    private void updateRouteHeader() {
+        ((TextView) findViewById(R.id.liveResultsHeading)).setText(
+                routeLabel(sourceCode, sourceName) + "  →  " + routeLabel(destinationCode, destinationName));
+        ((TextView) findViewById(R.id.liveResultsSubtitle)).setText(formatJourneyDate(journeyDate));
+    }
+
+    private void renderDateTabs() {
+        android.widget.LinearLayout tabs = findViewById(R.id.liveDateTabs);
+        tabs.removeAllViews();
+        LocalDate selected;
+        try {
+            selected = LocalDate.parse(journeyDate);
+        } catch (DateTimeParseException exception) {
+            findViewById(R.id.liveDateScroller).setVisibility(View.GONE);
+            return;
+        }
+
+        LocalDate minimum = LocalDate.now();
+        LocalDate maximum = minimum.plusDays(14);
+        if (selected.isBefore(minimum) || selected.isAfter(maximum)) {
+            findViewById(R.id.liveDateScroller).setVisibility(View.GONE);
+            return;
+        }
+        findViewById(R.id.liveDateScroller).setVisibility(View.VISIBLE);
+        LocalDate firstDate = selected.minusDays(2);
+        if (firstDate.isBefore(minimum)) firstDate = minimum;
+        LocalDate lastDate = firstDate.plusDays(4);
+        if (lastDate.isAfter(maximum)) {
+            lastDate = maximum;
+            firstDate = lastDate.minusDays(4);
+        }
+
+        DateTimeFormatter weekdayFormat = DateTimeFormatter.ofPattern("EEE", Locale.getDefault());
+        DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault());
+        for (LocalDate date = firstDate; !date.isAfter(lastDate); date = date.plusDays(1)) {
+            View tab = getLayoutInflater().inflate(R.layout.item_journey_date, tabs, false);
+            boolean isSelected = date.equals(selected);
+            ((TextView) tab.findViewById(R.id.dateTabWeekday)).setText(date.format(weekdayFormat));
+            ((TextView) tab.findViewById(R.id.dateTabDate)).setText(date.format(dateFormat));
+            ((TextView) tab.findViewById(R.id.dateTabWeekday)).setTextColor(
+                    getColor(isSelected ? R.color.brand : R.color.muted));
+            ((TextView) tab.findViewById(R.id.dateTabDate)).setTextColor(
+                    getColor(isSelected ? R.color.brand_dark : R.color.ink));
+            tab.findViewById(R.id.dateTabIndicator).setVisibility(isSelected ? View.VISIBLE : View.INVISIBLE);
+            tab.setContentDescription(date.format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.getDefault()))
+                    + (isSelected ? ", selected" : ""));
+            LocalDate tabDate = date;
+            tab.setOnClickListener(view -> selectDate(tabDate));
+            tabs.addView(tab);
+        }
+    }
+
+    private void selectDate(LocalDate date) {
+        if (date.toString().equals(journeyDate)) return;
+        journeyDate = date.toString();
+        getIntent().putExtra(LiveSearchActivity.EXTRA_DATE, journeyDate);
+        updateRouteHeader();
+        renderDateTabs();
+        if (validSearch()) loadTrains();
+    }
+
+    private String formatJourneyDate(String date) {
+        try {
+            return LocalDate.parse(date).format(DateTimeFormatter.ofPattern("d MMM, EEE", Locale.getDefault()));
+        } catch (DateTimeParseException exception) {
+            return value(date);
+        }
+    }
+
     private void openDetails(LiveTrain train) {
         if (train == null || destroyed || openingDetails) return;
         openingDetails = true;
@@ -113,13 +190,18 @@ public final class LiveTrainResultsActivity extends AppCompatActivity {
         retry.setVisibility(canRetry ? View.VISIBLE : View.GONE);
     }
 
-    private String label(String name, String code) {
+    private String routeLabel(String code, String name) {
         if (!nonEmpty(name)) return value(code);
-        return nonEmpty(code) ? name + " (" + code + ")" : name;
+        return nonEmpty(code) ? code + " - " + name : name;
     }
 
     private String value(String value) { return nonEmpty(value) ? value : "Not provided"; }
     private boolean nonEmpty(String value) { return value != null && !value.trim().isEmpty(); }
+
+    @Override protected void onSaveInstanceState(Bundle outState) {
+        outState.putString(LiveSearchActivity.EXTRA_DATE, journeyDate);
+        super.onSaveInstanceState(outState);
+    }
 
     @Override protected void onResume() {
         super.onResume();

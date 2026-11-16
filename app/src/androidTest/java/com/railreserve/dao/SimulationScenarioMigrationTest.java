@@ -41,8 +41,15 @@ public class SimulationScenarioMigrationTest {
                 old.setVersion(3);
             }
             SQLiteDatabase upgraded = f.helper.getWritableDatabase();
-            assertEquals(6, upgraded.getVersion());
-            for (String table : tables) assertEquals(expanded(originalSchemas.get(table)), expanded(schema(upgraded, table)));
+            assertEquals(7, upgraded.getVersion());
+            for (String table : tables) {
+                String expected = expanded(originalSchemas.get(table));
+                if ("bookings".equals(table)) {
+                    expected = expected.replace("cancelled_at TEXT)",
+                            "cancelled_at TEXT, hidden_from_list INTEGER NOT NULL DEFAULT 0 CHECK(hidden_from_list IN (0,1)))");
+                }
+                assertEquals(table, expected, expanded(schema(upgraded, table)));
+            }
             assertEquals(0, DatabaseUtils.queryNumEntries(upgraded, "simulation_scenarios"));
             Booking paid = f.service.findBookingByPnr("1234567890");
             assertEquals("90001", paid.getTrainNumber());

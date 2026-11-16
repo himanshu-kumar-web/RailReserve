@@ -71,8 +71,10 @@ public class BookingScreenDeviceTest {
                     return actual.createBooking(request);
                 }
                 @Override public List<Booking> getBookings() { return actual.getBookings(); }
+                @Override public List<Booking> getVisibleBookings() { return actual.getVisibleBookings(); }
                 @Override public Booking findBookingByPnr(String pnr) { return actual.findBookingByPnr(pnr); }
                 @Override public void cancelBooking(long id) { actual.cancelBooking(id); }
+                @Override public void hideBookingFromList(long id) { actual.hideBookingFromList(id); }
             };
             scenario = ActivityScenario.launch(new Intent(target, BookingActivity.class)
                     .putExtra(BookingActivity.EXTRA_JOURNEY_ID, 1L).putExtra(BookingActivity.EXTRA_CLASS, "SL")

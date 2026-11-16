@@ -5,6 +5,7 @@ import com.railreserve.model.Booking;
 import com.railreserve.model.BookingRequest;
 import com.railreserve.model.Seat;
 import com.railreserve.model.TravelClass;
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 import org.junit.Test;
@@ -91,11 +92,13 @@ public class BookingServiceImplTest {
             return null;
         }
         @Override public List<Booking> getBookings() { return Collections.emptyList(); }
+        @Override public List<Booking> getVisibleBookings(LocalDate today) { return Collections.emptyList(); }
         @Override public Booking findBookingByPnr(String pnr) {
             lookupCount++;
             lastPnr = pnr;
             return null;
         }
         @Override public void cancelBooking(long bookingId) { }
+        @Override public void hideBookingFromList(long bookingId) { }
     }
 }

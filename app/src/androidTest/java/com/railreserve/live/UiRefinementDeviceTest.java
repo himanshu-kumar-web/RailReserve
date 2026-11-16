@@ -41,8 +41,9 @@ public class UiRefinementDeviceTest {
         assumeTrue(BuildConfig.LIVE_FARE_ENABLED && BuildConfig.LIVE_AVAILABILITY_ENABLED);
         List<Activity> opened=new ArrayList<>();
         try(LocalBackendFixture server=new LocalBackendFixture()) {
-            server.handler=path->new LocalBackendFixture.Response(200,path.contains("/fare") || path.contains("/availability")
-                    ? LocalBackendFixture.enquiry("90390","AAA","BBB",LocalDate.now().toString(),"2A",path.contains("/fare"),875.0)
+            server.handler=path->new LocalBackendFixture.Response(200,path.contains("/fare")
+                    ? LocalBackendFixture.enquiry("90390","AAA","BBB",LocalDate.now().toString(),"2A",true,875.0)
+                    : path.contains("/availability") ? LocalBackendFixture.availableEnquiry("90390","AAA","BBB",LocalDate.now().toString(),"2A")
                     : path.contains("/schedule") ? "{\"success\":true,\"data\":{\"train\":{\"number\":\"90390\",\"name\":\"TEST FIXTURE Express\",\"classes\":[\"2A\",\"1A\"]},\"stops\":[{\"station\":{\"code\":\"AAA\"},\"sequence\":1}]}}"
                     : "{\"success\":true,\"data\":{\"from\":{\"code\":\"AAA\"},\"to\":{\"code\":\"BBB\"},\"count\":1,\"trains\":[{\"number\":\"90390\",\"name\":\"TEST FIXTURE Express\",\"classes\":[\"2A\",\"1A\"],\"from\":{\"departure\":\"22:00\",\"day\":0},\"to\":{\"arrival\":\"06:00\",\"day\":1},\"durationMinutes\":480}]}}");
             Activity home=start(new Intent(instrumentation.getTargetContext(),LiveSearchActivity.class));opened.add(home);
@@ -58,7 +59,7 @@ public class UiRefinementDeviceTest {
             waitFor(()->details.findViewById(R.id.detailsProgress).getVisibility()==View.GONE);
             assertEquals(0,server.paths.stream().filter(path->path.contains("/fare") || path.contains("/availability")).count());
             main(()->{ View card=details.findViewById(R.id.detailsClasses).findViewWithTag("2A");card.findViewById(R.id.classFareCheck).performClick();card.findViewById(R.id.classAvailabilityCheck).performClick();return null; });
-            waitFor(()->((TextView)details.findViewById(R.id.detailsClasses).findViewWithTag("2A").findViewById(R.id.classAvailability)).getText().toString().contains("GNWL107/WL62"));
+            waitFor(()->((TextView)details.findViewById(R.id.detailsClasses).findViewWithTag("2A").findViewById(R.id.classAvailability)).getText().toString().contains("AVAILABLE 4"));
             screenshot("details");
             main(()->{ ((ScrollView)details.findViewById(R.id.trainDetailsRoot)).scrollTo(0,details.findViewById(R.id.detailsClasses).getTop());return null; });screenshot("classes");
             Instrumentation.ActivityMonitor bookingMonitor=instrumentation.addMonitor(BookingActivity.class.getName(),null,false);
@@ -107,6 +108,30 @@ public class UiRefinementDeviceTest {
                 });screenshot("ticket-fixture");
             } finally { main(()->{ host.finish();return null; }); }
         }
+    }
+
+    @Test public void liveDerivedTicketShowsProviderStatusInsteadOfPlaceholderSeat() {
+        Activity host=start(new Intent(instrumentation.getTargetContext(),LiveSearchActivity.class));
+        try {
+            main(()->{
+                String retrieved=java.time.Instant.now().toString();
+                com.railreserve.model.FareSnapshot snapshot=new com.railreserve.model.FareSnapshot(
+                        "90390","AAA","BBB",LocalDate.now().plusDays(1).toString(),"2A","GN",24500,
+                        "RailCore fare estimate",retrieved,"AVAILABLE 4","AVAILABLE",
+                        "RailCore availability",retrieved);
+                Booking booking=new Booking(1,"1234567890",1,1,"90390","TEST FIXTURE Express","AAA","BBB",
+                        snapshot.getDate(),"08:00","12:00",0,"UI Fixture Passenger",25,"Other","SIM-S1",99,
+                        com.railreserve.model.TravelClass.AC_TWO_TIER,245,"CONFIRMED",retrieved,null,null,snapshot);
+                BookingAdapter adapter=new BookingAdapter(host,null);
+                adapter.setBookings(Collections.singletonList(booking));
+                View row=adapter.getView(0,null,new LinearLayout(host));
+                String details=((TextView)row.findViewById(R.id.bookingClassFare)).getText().toString();
+                assertTrue(details.contains("AVAILABLE"));
+                assertFalse(details.contains("SIM-S1"));
+                assertFalse(details.contains("Seat 99"));
+                return null;
+            });
+        } finally { main(()->{ host.finish();return null; }); }
     }
 
     @Test public void largeFontAndSmallViewportKeepControlsReadableAndScrollable() {

@@ -149,7 +149,9 @@ public class ReliabilityDeviceTest {
         @Override public List<Seat> getAvailableSeats(long id, String travelClass) { return Collections.emptyList(); }
         @Override public Booking createBooking(BookingRequest request) { throw new UnsupportedOperationException(); }
         @Override public List<Booking> getBookings() { return Collections.emptyList(); }
+        @Override public List<Booking> getVisibleBookings() { return Collections.emptyList(); }
         @Override public Booking findBookingByPnr(String pnr) { return null; }
         @Override public void cancelBooking(long id) { }
+        @Override public void hideBookingFromList(long id) { }
     }
 }

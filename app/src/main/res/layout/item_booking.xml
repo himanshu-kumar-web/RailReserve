@@ -132,4 +132,20 @@
         android:backgroundTint="@null"
         android:paddingTop="10dp"
         android:paddingBottom="10dp" />
+    <Button
+        android:id="@+id/removeBookingButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/button_secondary"
+        android:minHeight="48dp"
+        android:text="@string/remove_ticket_from_list"
+        android:textAllCaps="false"
+        android:textColor="@color/brand_dark"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        app:backgroundTint="@null"
+        android:backgroundTint="@null"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp" />
 </LinearLayout>

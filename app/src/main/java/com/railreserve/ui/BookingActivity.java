@@ -1,6 +1,7 @@
 package com.railreserve.ui;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
@@ -13,6 +14,8 @@ import android.widget.TextView;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.activity.OnBackPressedCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -24,6 +27,8 @@ import com.railreserve.model.Seat;
 import com.railreserve.model.TravelClass;
 import com.railreserve.service.BookingService;
 import com.railreserve.service.BookingServiceFactory;
+import com.railreserve.service.TicketPdfExporter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -49,7 +54,9 @@ public class BookingActivity extends AppCompatActivity {
     private BookingService service;
     private boolean destroyed;
     private boolean submitting;
+    private boolean liveSimulation;
     private BookingSubmissionViewModel submission;
+    private ActivityResultLauncher<String> ticketPdfLauncher;
     private AlertDialog confirmationDialog;
     private TextView checkoutSummary, checkoutTotal, paymentStatus;
     private Spinner paymentScenario;
@@ -74,10 +81,11 @@ public class BookingActivity extends AppCompatActivity {
         BackNavigation.bind(this);
         Object quote = getIntent().getSerializableExtra(EXTRA_FARE_SNAPSHOT);
         fareSnapshot = quote instanceof com.railreserve.model.FareSnapshot ? (com.railreserve.model.FareSnapshot) quote : null;
-        boolean simulation = getIntent().getBooleanExtra(EXTRA_LIVE_SIMULATION, false);
-        findViewById(R.id.bookingSimulationNotice).setVisibility(simulation ? View.VISIBLE : View.GONE);
-        findViewById(R.id.bookingSimulationPolicy).setVisibility(simulation ? View.VISIBLE : View.GONE);
-        if (simulation) ((TextView) findViewById(R.id.bookingSimulationPolicy)).setText(fareSnapshot == null
+        liveSimulation = getIntent().getBooleanExtra(EXTRA_LIVE_SIMULATION, false);
+        findViewById(R.id.bookingSimulationNotice).setVisibility(liveSimulation ? View.VISIBLE : View.GONE);
+        findViewById(R.id.bookingSimulationPolicy).setVisibility(liveSimulation ? View.VISIBLE : View.GONE);
+        findViewById(R.id.bookingSeatPicker).setVisibility(liveSimulation ? View.GONE : View.VISIBLE);
+        if (liveSimulation) ((TextView) findViewById(R.id.bookingSimulationPolicy)).setText(fareSnapshot == null
                 ? "A provider fare is required. Return to Train Details." : UiText.quote(fareSnapshot));
         View root = findViewById(R.id.bookingRoot);
         ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
@@ -135,7 +143,9 @@ public class BookingActivity extends AppCompatActivity {
         seatSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 Seat seat = (Seat) parent.getItemAtPosition(position);
-                selectedSeatSummary.setText("Selected seat  |  " + seat.getCoach() + " - " + seat.getNumber());
+                selectedSeatSummary.setText(liveSimulation && fareSnapshot != null
+                        ? "Provider status: " + fareSnapshot.getStatusType() + " (" + fareSnapshot.getAvailability() + "). No railway seat is assigned."
+                        : "Selected seat  |  " + seat.getCoach() + " - " + seat.getNumber());
                 fareSummary.setText((fareSnapshot == null ? "Local demo fare: " : "Captured estimate: ") + PaymentReceiptText.amount(checkoutAmount(seat)));
             }
             @Override public void onNothingSelected(AdapterView<?> parent) {
@@ -159,6 +169,8 @@ public class BookingActivity extends AppCompatActivity {
         confirmButton.setEnabled(false);
         confirmButton.setOnClickListener(view -> submitBooking());
         submission = new ViewModelProvider(this).get(BookingSubmissionViewModel.class);
+        ticketPdfLauncher = registerForActivityResult(new ActivityResultContracts.CreateDocument("application/pdf"),
+                this::saveTicketPdf);
         OnBackPressedCallback savingBack = new OnBackPressedCallback(false) {
             @Override public void handleOnBackPressed() {
                 BookingSubmissionViewModel.State current = submission.getState().getValue();
@@ -187,7 +199,7 @@ public class BookingActivity extends AppCompatActivity {
 
     private void loadAvailableSeats() {
         progress.setVisibility(View.VISIBLE);
-        seatStatus.setText("Loading available seats...");
+        seatStatus.setText(liveSimulation ? "Preparing local demo checkout..." : "Loading available seats...");
         seatStatus.setVisibility(View.VISIBLE);
         seatStatus.setClickable(false);
         confirmButton.setEnabled(false);
@@ -199,9 +211,10 @@ public class BookingActivity extends AppCompatActivity {
                     progress.setVisibility(View.GONE);
                     seatAdapter.clear();
                     seatAdapter.addAll(seats);
-                    confirmButton.setEnabled(!seats.isEmpty());
+                    confirmButton.setEnabled(!seats.isEmpty() && (!liveSimulation || fareSnapshot != null));
                     if (seats.isEmpty()) {
-                        seatStatus.setText("No seats remain in this class for this journey.");
+                        seatStatus.setText(liveSimulation ? "Local demo inventory is unavailable; no ticket was created."
+                                : "No seats remain in this class for this journey.");
                         seatStatus.setVisibility(View.VISIBLE);
                     } else {
                         seatStatus.setVisibility(View.GONE);
@@ -211,7 +224,8 @@ public class BookingActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     if (destroyed) return;
                     progress.setVisibility(View.GONE);
-                    seatStatus.setText("Could not load demo seats. Tap here to retry.");
+                    seatStatus.setText(liveSimulation ? "Could not prepare the local demo. Tap here to retry."
+                            : "Could not load demo seats. Tap here to retry.");
                     seatStatus.setOnClickListener(view -> loadAvailableSeats());
                     seatStatus.setClickable(true);
                     seatStatus.setVisibility(View.VISIBLE);
@@ -252,15 +266,19 @@ public class BookingActivity extends AppCompatActivity {
             return;
         }
 
-        if (getIntent().getBooleanExtra(EXTRA_LIVE_SIMULATION,false) && fareSnapshot == null) {
+        if (liveSimulation && fareSnapshot == null) {
             seatStatus.setText("A matching provider fare is required. Return to Train Details."); seatStatus.setVisibility(View.VISIBLE); return;
         }
         KeyboardHelper.dismiss(this);
         BookingRequest request = new BookingRequest(journeyId, selectedSeat.getId(),
                 travelClass, name, age, String.valueOf(genderSpinner.getSelectedItem()), null, null, fareSnapshot);
+        String seatSummary = liveSimulation
+                ? "\nProvider status: " + fareSnapshot.getStatusType() + " (" + fareSnapshot.getAvailability() + ")"
+                        + "\nNo railway seat is assigned or reserved; this is a local demo booking."
+                : "\nSelected seat: " + selectedSeat.getCoach() + " - " + selectedSeat.getNumber();
         String summary = ((TextView) findViewById(R.id.bookingTrainSummary)).getText().toString()
                 + "\n\nPassenger: " + name + ", age " + age + ", " + genderSpinner.getSelectedItem()
-                + "\nSelected seat: " + selectedSeat.getCoach() + " - " + selectedSeat.getNumber()
+                + seatSummary
                 + "\nDemo checkout amount: " + PaymentReceiptText.amount(checkoutAmount(selectedSeat)) + (fareSnapshot == null ? "" : "\n" + UiText.quote(fareSnapshot));
         try { submission.review(request, checkoutAmount(selectedSeat), summary); }
         catch (IllegalArgumentException invalidQuote) {
@@ -299,7 +317,7 @@ public class BookingActivity extends AppCompatActivity {
 
     private void renderCheckout(BookingSubmissionViewModel.State result) {
         boolean reviewing = result != null;
-        boolean liveForm = !reviewing && getIntent().getBooleanExtra(EXTRA_LIVE_SIMULATION,false);
+        boolean liveForm = !reviewing && liveSimulation;
         findViewById(R.id.bookingSimulationNotice).setVisibility(liveForm ? View.VISIBLE : View.GONE);
         findViewById(R.id.bookingSimulationPolicy).setVisibility(liveForm ? View.VISIBLE : View.GONE);
         findViewById(R.id.bookingForm).setVisibility(reviewing ? View.GONE : View.VISIBLE);
@@ -352,15 +370,24 @@ public class BookingActivity extends AppCompatActivity {
                         + booking.getArrival() + (booking.getArrivalDayOffset() > 0 ? " (+1 day)" : ""));
         ((TextView) confirmation.findViewById(R.id.confirmationPassenger)).setText(
                 "Passenger  |  " + booking.getPassengerName() + ", age " + booking.getAge());
-        ((TextView) confirmation.findViewById(R.id.confirmationSeatClass)).setText(
-                "Seat  |  " + booking.getCoach() + " - " + booking.getSeatNumber()
-                        + "     Class  |  " + booking.getTravelClass().getLabel());
+        ((TextView) confirmation.findViewById(R.id.confirmationSeatClass)).setText(booking.getFareSnapshot() == null
+                ? "Seat  |  " + booking.getCoach() + " - " + booking.getSeatNumber()
+                        + "     Class  |  " + booking.getTravelClass().getLabel()
+                : "Class  |  " + booking.getTravelClass().getLabel()
+                        + "\nProvider status  |  " + booking.getFareSnapshot().getStatusType()
+                        + " (" + booking.getFareSnapshot().getAvailability() + ")"
+                        + "\nNo railway seat is assigned or reserved. Local demo only.");
         ((TextView) confirmation.findViewById(R.id.confirmationFare)).setText(
                 "Demo checkout amount: " + PaymentReceiptText.amount(Math.multiplyExact((long) booking.getFare(),100L)));
 
         ((TextView) confirmation.findViewById(R.id.confirmationPayment)).setText(PaymentReceiptText.receipt(booking));
+        Button downloadPdf = confirmation.findViewById(R.id.downloadTicketPdf);
+        boolean confirmed = "CONFIRMED".equals(booking.getStatus());
+        downloadPdf.setVisibility(confirmed ? View.VISIBLE : View.GONE);
+        downloadPdf.setOnClickListener(view -> ticketPdfLauncher.launch(
+                "RailReserve-Ticket-" + booking.getPnr() + ".pdf"));
         confirmationDialog = new AlertDialog.Builder(this)
-                .setTitle("CONFIRMED".equals(booking.getStatus()) ? "Local demo booking confirmed" : "Local demo booking cancelled")
+                .setTitle(confirmed ? "Local demo booking confirmed" : "Local demo booking cancelled")
                 .setView(confirmation)
                 .setCancelable(false)
                 .setPositiveButton("My bookings", (dialog, which) -> {
@@ -374,6 +401,30 @@ public class BookingActivity extends AppCompatActivity {
                     finish();
                 })
                 .show();
+    }
+
+    private void saveTicketPdf(Uri destination) {
+        if (destination == null) return;
+        BookingSubmissionViewModel.State result = submission.getState().getValue();
+        Booking booking = result == null ? null : result.getBooking();
+        if (booking == null || !"CONFIRMED".equals(booking.getStatus())) {
+            android.widget.Toast.makeText(this, R.string.ticket_pdf_unavailable, android.widget.Toast.LENGTH_LONG).show();
+            return;
+        }
+        executor.execute(() -> {
+            try {
+                TicketPdfExporter.write(getContentResolver(), destination, booking);
+                runOnUiThread(() -> {
+                    if (!destroyed) android.widget.Toast.makeText(this,
+                            R.string.ticket_pdf_saved, android.widget.Toast.LENGTH_LONG).show();
+                });
+            } catch (IOException | SecurityException exception) {
+                runOnUiThread(() -> {
+                    if (!destroyed) android.widget.Toast.makeText(this,
+                            R.string.ticket_pdf_save_failed, android.widget.Toast.LENGTH_LONG).show();
+                });
+            }
+        });
     }
 
     @Override

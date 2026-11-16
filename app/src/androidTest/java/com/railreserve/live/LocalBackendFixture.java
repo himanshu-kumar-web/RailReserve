@@ -39,6 +39,13 @@ final class LocalBackendFixture implements AutoCloseable {
             return new org.json.JSONObject().put("success",true).put("data",data).toString();
         } catch (org.json.JSONException failure) { throw new AssertionError(failure); }
     }
+    static String availableEnquiry(String number,String from,String to,String date,String clazz) {
+        try {
+            org.json.JSONObject response = new org.json.JSONObject(enquiry(number,from,to,date,clazz,false,null));
+            response.getJSONObject("data").put("availabilityStatus","AVAILABLE 4").put("statusType","AVAILABLE");
+            return response.toString();
+        } catch (org.json.JSONException failure) { throw new AssertionError(failure); }
+    }
     volatile Handler handler;
     final AtomicInteger requests = new AtomicInteger();
     final java.util.concurrent.ConcurrentLinkedQueue<String> paths = new java.util.concurrent.ConcurrentLinkedQueue<>();

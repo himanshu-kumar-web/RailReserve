@@ -114,19 +114,23 @@ public final class TrainDetailsViewModel extends ViewModel {
         LiveFare fare = price.fare;
         try { fare.getContext().requireMatch(train.getNumber(),from,to,date,code,"GN"); }
         catch (BackendException invalid) { throw new IllegalArgumentException(invalid.getMessage()); }
+        if (!BuildConfig.LIVE_AVAILABILITY_ENABLED) {
+            throw new IllegalArgumentException("Live availability is disabled for this build. No demo booking was created.");
+        }
+        if (seats == null || seats.loading || seats.expired || seats.availability == null) {
+            throw new IllegalArgumentException("Check live availability before continuing. No demo booking was created.");
+        }
+        LiveAvailability availability = seats.availability;
+        try { availability.getContext().requireMatch(train.getNumber(),from,to,date,code,"GN"); }
+        catch (BackendException invalid) { throw new IllegalArgumentException(invalid.getMessage()); }
         long paise;
         try { paise = java.math.BigDecimal.valueOf(fare.getTotal()).movePointRight(2).longValueExact(); }
         catch (RuntimeException e) { throw new IllegalArgumentException("The provider fare cannot be represented exactly."); }
-        LiveAvailability availability = seats == null || seats.loading ? null : seats.availability;
-        if (availability != null) {
-            try { availability.getContext().requireMatch(train.getNumber(),from,to,date,code,"GN"); }
-            catch (BackendException invalid) { availability = null; }
-        }
         com.railreserve.model.FareSnapshot snapshot = new com.railreserve.model.FareSnapshot(train.getNumber(),from,to,date,code,"GN",paise,
-                fare.getSource(),fare.getRetrievedAt(),availability == null ? null : availability.getStatus(),
-                availability == null ? null : availability.getStatusType(),availability == null ? null : availability.getSource(),
-                availability == null ? null : availability.getRetrievedAt());
+                fare.getSource(),fare.getRetrievedAt(),availability.getStatus(),availability.getStatusType(),
+                availability.getSource(),availability.getRetrievedAt());
         snapshot.requireFresh();
+        snapshot.requireAvailableForBooking();
         return snapshot;
     }
     private String provenance(String source, String retrieved) {

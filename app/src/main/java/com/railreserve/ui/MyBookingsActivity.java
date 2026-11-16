@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class MyBookingsActivity extends AppCompatActivity implements BookingAdapter.CancelListener {
+public class MyBookingsActivity extends AppCompatActivity implements BookingAdapter.CancelListener, BookingAdapter.RemoveListener {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final List<Booking> allBookings = new ArrayList<>();
     private BookingService service;
@@ -46,6 +46,8 @@ public class MyBookingsActivity extends AppCompatActivity implements BookingAdap
     private boolean destroyed;
     private boolean cancellationInProgress;
     private boolean cancellationDialogShowing;
+    private boolean removalInProgress;
+    private boolean removalDialogShowing;
     private boolean bookingsLoaded;
 
     @Override protected void onCreate(Bundle state) {
@@ -69,7 +71,7 @@ public class MyBookingsActivity extends AppCompatActivity implements BookingAdap
         searchInput = findViewById(R.id.bookingSearchInput);
         statusSpinner = findViewById(R.id.bookingStatusSpinner);
         sortSpinner = findViewById(R.id.bookingSortSpinner);
-        adapter = new BookingAdapter(this, this);
+        adapter = new BookingAdapter(this, this, this);
         list.setAdapter(adapter);
         emptySearchButton.setOnClickListener(view -> {
             Intent intent = new Intent(this, AppSectionActivity.class);
@@ -84,7 +86,7 @@ public class MyBookingsActivity extends AppCompatActivity implements BookingAdap
     private void configureFilters() {
         ArrayAdapter<String> statuses = new ArrayAdapter<>(this,
                 android.R.layout.simple_spinner_item,
-                new String[]{"All", "Upcoming", "Completed", "Cancelled"});
+                new String[]{"All", "Upcoming", "Cancelled"});
         statuses.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         statusSpinner.setAdapter(statuses);
 
@@ -124,7 +126,7 @@ public class MyBookingsActivity extends AppCompatActivity implements BookingAdap
         emptySearchButton.setVisibility(View.GONE);
         executor.execute(() -> {
             try {
-                List<Booking> bookings = service.getBookings();
+                List<Booking> bookings = service.getVisibleBookings();
                 runOnUiThread(() -> {
                     if (destroyed) return;
                     progress.setVisibility(View.GONE);
@@ -149,7 +151,11 @@ public class MyBookingsActivity extends AppCompatActivity implements BookingAdap
     private void renderBookings() {
         String query = searchInput.getText().toString().trim();
         int selectedFilter = statusSpinner.getSelectedItemPosition();
-        BookingHistoryOrganizer.StatusFilter[] filters = BookingHistoryOrganizer.StatusFilter.values();
+        BookingHistoryOrganizer.StatusFilter[] filters = {
+                BookingHistoryOrganizer.StatusFilter.ALL,
+                BookingHistoryOrganizer.StatusFilter.UPCOMING,
+                BookingHistoryOrganizer.StatusFilter.CANCELLED
+        };
         BookingHistoryOrganizer.JourneySort[] sorts = BookingHistoryOrganizer.JourneySort.values();
         BookingHistoryOrganizer.StatusFilter filter = selectedFilter >= 0 && selectedFilter < filters.length
                 ? filters[selectedFilter] : BookingHistoryOrganizer.StatusFilter.ALL;
@@ -191,9 +197,11 @@ public class MyBookingsActivity extends AppCompatActivity implements BookingAdap
                 .setTitle("Cancel this reservation?")
                 .setMessage("Demo PNR " + booking.getPnr() + "\n"
                         + booking.getTrainName() + "\n"
-                        + booking.getJourneyDate() + "  |  "
-                        + booking.getCoach() + " Seat " + booking.getSeatNumber()
-                        + "\nThe seat will be released if cancellation succeeds.")
+                        + booking.getJourneyDate() + "\n"
+                        + (booking.getFareSnapshot() == null
+                        ? booking.getCoach() + " Seat " + booking.getSeatNumber()
+                        : "Provider status: " + booking.getFareSnapshot().getStatusType() + " (enquiry only)")
+                        + "\nThe local demo reservation will be cancelled; no railway seat is held.")
                 .setNegativeButton("Keep booking", null)
                 .setPositiveButton("Cancel reservation", null)
                 .create();
@@ -220,7 +228,9 @@ public class MyBookingsActivity extends AppCompatActivity implements BookingAdap
                     cancellationInProgress = false;
                     adapter.setCancellationInProgress(false);
                     progress.setVisibility(View.GONE);
-                    Toast.makeText(this, booking.getPayment() == null
+                    Toast.makeText(this, booking.getFareSnapshot() != null
+                                    ? "Local demo booking cancelled. No railway seat was held."
+                                    : booking.getPayment() == null
                                     ? "Booking cancelled. The seat is available again."
                                     : "Booking cancelled and seat released. Simulated refund recorded; no real money moved.",
                             Toast.LENGTH_SHORT).show();
@@ -242,7 +252,52 @@ public class MyBookingsActivity extends AppCompatActivity implements BookingAdap
                     loadBookings();
                 });
             }
+
         });
+    }
+
+    @Override public void onRemove(Booking booking) {
+        if (removalInProgress || removalDialogShowing) return;
+        removalDialogShowing = true;
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(R.string.remove_ticket_title)
+                .setMessage(R.string.remove_ticket_message)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.remove_ticket_from_list, null)
+                .create();
+        dialog.setOnDismissListener(ignored -> removalDialogShowing = false);
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(view -> {
+                    if (removalInProgress) return;
+                    dialog.dismiss();
+                    removalInProgress = true;
+                    progress.setVisibility(View.VISIBLE);
+                    executor.execute(() -> {
+                        try {
+                            service.hideBookingFromList(booking.getId());
+                            runOnUiThread(() -> {
+                                if (destroyed) return;
+                                removalInProgress = false;
+                                progress.setVisibility(View.GONE);
+                                Toast.makeText(this, R.string.ticket_hidden, Toast.LENGTH_SHORT).show();
+                                loadBookings();
+                            });
+                        } catch (Exception exception) {
+                            runOnUiThread(() -> {
+                                if (destroyed) return;
+                                removalInProgress = false;
+                                progress.setVisibility(View.GONE);
+                                new AlertDialog.Builder(this)
+                                        .setTitle(R.string.remove_ticket_failed)
+                                        .setMessage(exception.getMessage() == null
+                                                ? getString(R.string.remove_ticket_failed_message) : exception.getMessage())
+                                        .setPositiveButton(android.R.string.ok, null)
+                                        .show();
+                            });
+                        }
+                    });
+                }));
+        dialog.show();
     }
 
     @Override protected void onDestroy() {

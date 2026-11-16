@@ -43,6 +43,20 @@ public final class FareSnapshot implements Serializable {
         long age = java.time.Duration.between(Instant.parse(retrievedAt), Instant.now()).toMillis();
         if (age > 60_000 || age < -300_000) throw new IllegalArgumentException("The fare quote expired. Return to Train Details and check the fare again.");
     }
+    public void requireAvailableForBooking() {
+        validate();
+        if (availability == null) {
+            throw new IllegalArgumentException("Check live availability before continuing. No demo booking was created.");
+        }
+        long age = java.time.Duration.between(Instant.parse(availabilityRetrievedAt), Instant.now()).toMillis();
+        if (age > 60_000 || age < -300_000) {
+            throw new IllegalArgumentException("Live availability expired. Check availability again. No demo booking was created.");
+        }
+        if (!"AVAILABLE".equalsIgnoreCase(statusType.trim())) {
+            throw new IllegalArgumentException("The provider reports " + statusType + " (" + availability
+                    + "). Booking is blocked; no demo booking was created.");
+        }
+    }
     public void requireContext(String number, String from, String to, String date, String clazz, String quota) {
         validate();
         if (!Objects.equals(this.number, number) || !Objects.equals(this.from, from) || !Objects.equals(this.to, to)
