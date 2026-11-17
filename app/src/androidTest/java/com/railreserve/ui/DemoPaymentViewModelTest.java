@@ -31,13 +31,21 @@ public class DemoPaymentViewModelTest {
                     assertNull(model.getState().getValue()); assertNull(model.getCheckoutReference());
                 }
                 String now=java.time.Instant.now().toString();
-                for(String status:new String[]{"WAITLIST","RAC"}) {
+                for(String status:new String[]{"RAC"}) {
                     com.railreserve.model.FareSnapshot blocked=new com.railreserve.model.FareSnapshot("15004","GKP","PRYJ",
                             java.time.LocalDate.now().toString(),"2A","GN",87500,"RailCore fare estimate",now,
                             status.equals("RAC") ? "RAC 12" : "GNWL107/WL62",status,"RailCore availability",now);
                     assertThrows(IllegalArgumentException.class,()->model.review(new com.railreserve.model.BookingRequest(1,1,
                             com.railreserve.model.TravelClass.AC_TWO_TIER,"Passenger",25,"Other",null,null,blocked),87500,"Blocked quote"));
                 }
+                com.railreserve.model.FareSnapshot waitlist=new com.railreserve.model.FareSnapshot("15004","GKP","PRYJ",
+                        java.time.LocalDate.now().toString(),"2A","GN",87500,"RailCore fare estimate",now,
+                        "GNWL107/WL62","WAITLIST","RailCore availability",now);
+                model.review(new com.railreserve.model.BookingRequest(1,0,com.railreserve.model.TravelClass.AC_TWO_TIER,
+                        "Passenger",25,"Other",null,null,waitlist),87500,"Wait-listed quote");
+                assertEquals(BookingSubmissionViewModel.Stage.REVIEW,model.getState().getValue().getStage());
+                assertNull(model.getState().getValue().getBooking());
+                model.editReview();
                 com.railreserve.model.FareSnapshot fresh=new com.railreserve.model.FareSnapshot("15004","GKP","PRYJ",java.time.LocalDate.now().toString(),"2A","GN",87500,"RailCore fare estimate",now,"AVAILABLE 4","AVAILABLE","RailCore availability",now);
                 model.review(new com.railreserve.model.BookingRequest(1,1,com.railreserve.model.TravelClass.AC_TWO_TIER,"Passenger",25,"Other",null,null,fresh),87500,"Fresh quote");
                 assertEquals(BookingSubmissionViewModel.Stage.REVIEW,model.getState().getValue().getStage()); assertEquals(87500,model.getAmountPaise());
@@ -71,6 +79,50 @@ public class DemoPaymentViewModelTest {
                 Booking result=main(()->next.getState().getValue().getBooking()); assertEquals(245,result.getFare());
                 assertEquals(24500,result.getPayment().getAmountPaise()); assertEquals("AVAILABLE 4",result.getFareSnapshot().getAvailability());
             } finally { main(()->{ store.clear(); return null; }); }
+        }
+    }
+    @Test public void waitlistCheckoutIsIdempotentKeepsNoSeatAndCanBeConfirmedOnlyWithLocalInventory() throws Exception {
+        try (DemoPaymentTestDatabase fixture = new DemoPaymentTestDatabase()) {
+            String date = java.time.LocalDate.now().plusDays(1).toString();
+            String retrieved = java.time.Instant.now().toString();
+            com.railreserve.model.FareSnapshot quote = new com.railreserve.model.FareSnapshot(
+                    "15004", "GKP", "PRYJ", date, "SL", "GN", 24500,
+                    "RailCore fare estimate", retrieved, "GNWL12/WL4", "WAITLIST",
+                    "RailCore availability", retrieved);
+            com.railreserve.model.TrainSearchResult scenario = new com.railreserve.service.SimulationScenarioService(
+                    new com.railreserve.dao.SQLiteSimulationScenarioDao(fixture.helper)).prepare(
+                    new com.railreserve.model.SimulationRequest("15004", "TEST FIXTURE", "GKP", "Gorakhpur",
+                            "PRYJ", "Prayagraj", date, com.railreserve.model.TravelClass.SLEEPER,
+                            "20:00", "08:00", 0, 1, quote));
+            com.railreserve.model.BookingRequest draft = new com.railreserve.model.BookingRequest(
+                    scenario.getJourneyId(), 0, com.railreserve.model.TravelClass.SLEEPER,
+                    "Wait List Passenger", 25, "Other", null, null, quote);
+            BookingSubmissionViewModel model = main(BookingSubmissionViewModel::new);
+            ViewModelStore store = main(() -> { ViewModelStore value = new ViewModelStore(); value.put("waitlist", model); return value; });
+            try {
+                main(() -> {
+                    model.review(draft, 24500, "Wait-list checkout");
+                    model.pay(fixture.service, BookingSubmissionViewModel.Simulation.SUCCESS);
+                    model.pay(fixture.service, BookingSubmissionViewModel.Simulation.SUCCESS);
+                    return null;
+                });
+                waitStage(model, BookingSubmissionViewModel.Stage.COMPLETE);
+                Booking waitlisted = main(() -> model.getState().getValue().getBooking());
+                assertEquals("WAITING_LIST", waitlisted.getStatus());
+                assertEquals(Integer.valueOf(1), waitlisted.getWaitlistNumber());
+                assertEquals(0, waitlisted.getSeatId());
+                assertNull(waitlisted.getCoach());
+                assertEquals("SUCCESS", waitlisted.getPayment().getStatus());
+                assertEquals(6, fixture.service.getAvailableSeats(scenario.getJourneyId(), "SL").size());
+
+                Booking confirmed = fixture.service.confirmWaitingList(waitlisted.getId());
+                assertEquals("CONFIRMED", confirmed.getStatus());
+                assertTrue(confirmed.getSeatId() > 0);
+                assertTrue(confirmed.getCoach() != null && confirmed.getSeatNumber() > 0);
+                assertNull(confirmed.getWaitlistNumber());
+                assertEquals(5, fixture.service.getAvailableSeats(scenario.getJourneyId(), "SL").size());
+                assertEquals("SUCCESS", fixture.service.findBookingByPnr(waitlisted.getPnr()).getPayment().getStatus());
+            } finally { main(() -> { store.clear(); return null; }); }
         }
     }
     @Test public void failedAndCancelledSimulationsWriteNothingAndRetrySucceeds() throws Exception {

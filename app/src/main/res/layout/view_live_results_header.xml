@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingTop="8dp">
+    <TextView
+        android:id="@+id/liveCapabilityNotice"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/live_results_details_notice"
+        android:textColor="@color/brand_dark"
+        android:textSize="12sp" />
+    <ProgressBar
+        android:id="@+id/liveResultsProgress"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="12dp" />
+    <TextView
+        android:id="@+id/liveResultsStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/live_search_card"
+        android:gravity="center"
+        android:minHeight="110dp"
+        android:padding="20dp"
+        android:textColor="@color/muted"
+        android:textSize="15sp"
+        android:visibility="gone"
+        android:accessibilityLiveRegion="polite" />
+    <Button
+        android:id="@+id/liveResultsRetry"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/button_secondary"
+        android:backgroundTint="@null"
+        android:minHeight="50dp"
+        android:text="@string/retry"
+        android:textAllCaps="false"
+        android:textColor="@color/brand_dark"
+        android:visibility="gone"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp" />
+</LinearLayout>

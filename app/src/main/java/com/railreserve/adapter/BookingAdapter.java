@@ -23,21 +23,33 @@ public final class BookingAdapter extends BaseAdapter {
         void onRemove(Booking booking);
     }
 
+    public interface WaitingListListener {
+        void onConfirmWaitingList(Booking booking);
+    }
+
     private final LayoutInflater inflater;
     private final List<Booking> bookings = new ArrayList<>();
     private final CancelListener listener;
     private final RemoveListener removeListener;
+    private final WaitingListListener waitingListListener;
     private boolean cancellationInProgress;
+    private boolean confirmationInProgress;
     private final java.util.Set<Long> expandedReceipts = new java.util.HashSet<>();
 
     public BookingAdapter(Context context, CancelListener listener) {
-        this(context, listener, null);
+        this(context, listener, null, null);
     }
 
     public BookingAdapter(Context context, CancelListener listener, RemoveListener removeListener) {
+        this(context, listener, removeListener, null);
+    }
+
+    public BookingAdapter(Context context, CancelListener listener, RemoveListener removeListener,
+                          WaitingListListener waitingListListener) {
         inflater = LayoutInflater.from(context);
         this.listener = listener;
         this.removeListener = removeListener;
+        this.waitingListListener = waitingListListener;
     }
 
     public void setBookings(List<Booking> values) {
@@ -48,6 +60,11 @@ public final class BookingAdapter extends BaseAdapter {
 
     public void setCancellationInProgress(boolean inProgress) {
         cancellationInProgress = inProgress;
+        notifyDataSetChanged();
+    }
+
+    public void setConfirmationInProgress(boolean inProgress) {
+        confirmationInProgress = inProgress;
         notifyDataSetChanged();
     }
 
@@ -84,26 +101,38 @@ public final class BookingAdapter extends BaseAdapter {
         ((TextView) view.findViewById(R.id.bookingPassenger)).setText(
                 "Passenger  |  " + booking.getPassengerName() + ", age " + booking.getAge());
         String classFare = booking.getTravelClass().getLabel();
-        if (booking.getFareSnapshot() == null) {
+        if ("WAITING_LIST".equals(booking.getStatus())) {
+            classFare += "  |  WL " + booking.getWaitlistNumber() + "  |  No seat allocated while waitlisted  |  Local demo";
+        } else if (booking.getFareSnapshot() == null) {
             classFare += "  |  " + booking.getCoach() + " Seat " + booking.getSeatNumber()
                     + "  |  Local demo fare ";
         } else {
-            classFare += "  |  Live status: " + booking.getFareSnapshot().getStatusType()
+            classFare += "  |  Local demo seat: " + booking.getCoach() + " " + booking.getSeatNumber()
+                    + "  |  Live status: " + booking.getFareSnapshot().getStatusType()
                     + " (" + booking.getFareSnapshot().getAvailability() + ")  |  No railway seat reserved  |  Captured estimate ";
         }
         ((TextView) view.findViewById(R.id.bookingClassFare)).setText(
                 classFare + PaymentReceiptText.amount(booking.getFare()*100L));
 
         TextView status = view.findViewById(R.id.bookingStatus);
-        status.setText("Local demo: " + booking.getStatus());
-        status.setBackgroundResource(confirmed ? R.drawable.status_confirmed : R.drawable.status_cancelled);
-        status.setTextColor(confirmed ? 0xff20624e : 0xff9a3e31);
+        boolean waitingList = "WAITING_LIST".equals(booking.getStatus());
+        status.setText("Local demo: " + booking.getStatus()
+                + (waitingList ? " · WL " + booking.getWaitlistNumber() : ""));
+        status.setBackgroundResource(confirmed ? R.drawable.status_confirmed
+                : waitingList ? R.drawable.status_waiting_list : R.drawable.status_cancelled);
+        status.setTextColor(confirmed ? 0xff20624e : waitingList ? 0xff9a5c00 : 0xff9a3e31);
 
         Button cancelButton = view.findViewById(R.id.cancelBookingButton);
-        cancelButton.setVisibility(confirmed && listener != null ? View.VISIBLE : View.GONE);
-        cancelButton.setEnabled(confirmed && listener != null && !cancellationInProgress);
+        cancelButton.setVisibility((confirmed || waitingList) && listener != null ? View.VISIBLE : View.GONE);
+        cancelButton.setEnabled((confirmed || waitingList) && listener != null && !cancellationInProgress);
         cancelButton.setText(cancellationInProgress ? "Cancelling..." : "Cancel booking");
         cancelButton.setOnClickListener(listener == null ? null : clicked -> listener.onCancel(booking));
+        Button confirmWaitingList = view.findViewById(R.id.confirmWaitingListButton);
+        confirmWaitingList.setVisibility(waitingList && waitingListListener != null ? View.VISIBLE : View.GONE);
+        confirmWaitingList.setEnabled(waitingList && !confirmationInProgress);
+        confirmWaitingList.setText(confirmationInProgress ? "Confirming locally..." : "Simulate local confirmation");
+        confirmWaitingList.setOnClickListener(waitingListListener == null ? null
+                : clicked -> waitingListListener.onConfirmWaitingList(booking));
         Button removeButton = view.findViewById(R.id.removeBookingButton);
         removeButton.setVisibility(removeListener == null ? View.GONE : View.VISIBLE);
         removeButton.setOnClickListener(removeListener == null ? null : clicked -> removeListener.onRemove(booking));

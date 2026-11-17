@@ -148,6 +148,7 @@ public class ReliabilityDeviceTest {
         @Override public Booking findBookingByCheckoutReference(String reference) { return null; }
         @Override public List<Seat> getAvailableSeats(long id, String travelClass) { return Collections.emptyList(); }
         @Override public Booking createBooking(BookingRequest request) { throw new UnsupportedOperationException(); }
+        @Override public Booking confirmWaitingList(long id) { throw new UnsupportedOperationException(); }
         @Override public List<Booking> getBookings() { return Collections.emptyList(); }
         @Override public List<Booking> getVisibleBookings() { return Collections.emptyList(); }
         @Override public Booking findBookingByPnr(String pnr) { return null; }

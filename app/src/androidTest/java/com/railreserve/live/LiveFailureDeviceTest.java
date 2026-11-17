@@ -60,7 +60,9 @@ public class LiveFailureDeviceTest {
         server.handler = path -> new LocalBackendFixture.Response(200,
                 path.contains("/fare") ? LocalBackendFixture.enquiry("12345","AAA","BBB",LocalDate.now().toString(),"2A",true,245.0)
                 : path.contains("/availability") ? LocalBackendFixture.availableEnquiry("12345","AAA","BBB",LocalDate.now().toString(),"2A")
-                : path.contains("/schedule") ? "{\"success\":true,\"data\":{\"train\":{\"number\":\"12345\",\"name\":\"Fixture\",\"classes\":[\"2A\"]},\"stops\":[]}}"
+                : path.contains("/schedule") ? "{\"success\":true,\"data\":{\"train\":{\"number\":\"12345\",\"name\":\"Fixture\",\"classes\":[\"2A\"]},\"stops\":["
+                        + "{\"sequence\":1,\"station\":{\"code\":\"AAA\",\"name\":\"Alpha\"},\"departure\":\"22:00\",\"departureDay\":0,\"isHalt\":true},"
+                        + "{\"sequence\":2,\"station\":{\"code\":\"BBB\",\"name\":\"Beta\"},\"arrival\":\"06:00\",\"arrivalDay\":1,\"isHalt\":true}]}}"
                 : "{\"success\":true,\"data\":{\"from\":{\"code\":\"AAA\"},\"to\":{\"code\":\"BBB\"},\"count\":1,\"trains\":["
                         + "{\"number\":\"12345\",\"name\":\"TEST FIXTURE Selected Express\",\"from\":{\"departure\":\"22:00\",\"day\":0},"
                         + "\"to\":{\"arrival\":\"06:00\",\"day\":1}}]}}");
@@ -74,14 +76,20 @@ public class LiveFailureDeviceTest {
         try {
             java.util.concurrent.atomic.AtomicReference<LiveTrainResultsActivity> current = new java.util.concurrent.atomic.AtomicReference<>();
             screen.onActivity(current::set);
-            waitFor(() -> ((ListView) current.get().findViewById(R.id.liveResultsList)).getAdapter().getCount() == 1);
+            waitFor(() -> {
+                ListView list = current.get().findViewById(R.id.liveResultsList);
+                return list.getAdapter().getCount() - list.getHeaderViewsCount() == 1;
+            });
             screen.recreate();
             screen.onActivity(current::set);
-            waitFor(() -> ((ListView) current.get().findViewById(R.id.liveResultsList)).getAdapter().getCount() == 1);
+            waitFor(() -> {
+                ListView list = current.get().findViewById(R.id.liveResultsList);
+                return list.getAdapter().getCount() - list.getHeaderViewsCount() == 1;
+            });
             Instrumentation.ActivityMonitor detailsMonitor = instrumentation.addMonitor(com.railreserve.ui.TrainDetailsActivity.class.getName(), null, false);
             screen.onActivity(activity -> {
                 ListView list = activity.findViewById(R.id.liveResultsList);
-                View row = list.getAdapter().getView(0, null, list);
+                View row = list.getAdapter().getView(list.getHeaderViewsCount(), null, list);
                 row.performClick(); row.performClick();
             });
             Activity details = instrumentation.waitForMonitorWithTimeout(detailsMonitor, 10000);
@@ -212,6 +220,7 @@ public class LiveFailureDeviceTest {
         waitFor(() -> activity.findViewById(R.id.liveResultsRetry).getVisibility() == View.VISIBLE);
         assertTrue(main(() -> text(activity, R.id.liveResultsStatus).startsWith("No trains")));
         recoverTrains(activity);
+        assertEquals(0, server.paths.stream().filter(path -> path.contains("/schedule")).count());
         assertFalse(BuildConfig.LIVE_FARE_ENABLED);
         assertFalse(BuildConfig.LIVE_AVAILABILITY_ENABLED);
         assumeTrue(!BuildConfig.LIVE_FARE_ENABLED && !BuildConfig.LIVE_AVAILABILITY_ENABLED);
@@ -301,10 +310,11 @@ public class LiveFailureDeviceTest {
     private void recoverTrains(Activity activity) throws Exception {
         server.handler = path -> new LocalBackendFixture.Response(200, TRAINS);
         main(() -> { activity.findViewById(R.id.liveResultsRetry).performClick(); return null; });
-        waitFor(() -> ((ListView) activity.findViewById(R.id.liveResultsList)).getAdapter().getCount() == 1);
+        waitFor(() -> ((ListView) activity.findViewById(R.id.liveResultsList)).getAdapter().getCount()
+                == ((ListView) activity.findViewById(R.id.liveResultsList)).getHeaderViewsCount() + 1);
         main(() -> {
             ListView list = activity.findViewById(R.id.liveResultsList);
-            View row = list.getAdapter().getView(0, null, list);
+            View row = list.getAdapter().getView(list.getHeaderViewsCount(), null, list);
             assertTrue(row.findViewById(R.id.liveTrainDetailsButton).isEnabled());
             assertEquals(activity.getString(R.string.live_results_details_notice), text(activity, R.id.liveCapabilityNotice));
             return null;

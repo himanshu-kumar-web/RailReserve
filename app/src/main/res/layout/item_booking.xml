@@ -117,6 +117,23 @@
         android:visibility="gone"
         android:textIsSelectable="true" />
     <Button
+        android:id="@+id/confirmWaitingListButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/button_primary"
+        android:minHeight="48dp"
+        android:text="Simulate local confirmation"
+        android:textAllCaps="false"
+        android:textColor="@color/white"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:backgroundTint="@null"
+        android:backgroundTint="@null"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp" />
+    <Button
         android:id="@+id/cancelBookingButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

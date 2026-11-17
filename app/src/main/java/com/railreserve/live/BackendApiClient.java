@@ -126,7 +126,7 @@ public final class BackendApiClient {
         if (status == 404) return "No train data was found for this request.";
         if (status == 429) return "Request limit reached. Please try again later.";
         if (status >= 500) return "Train-data service is temporarily unavailable. Please try again later.";
-        return "Train-data service returned an unexpected response.";
+        return "Train-data service could not verify this request. Check the train, scheduled stations and class, then retry.";
     }
 
     private boolean isLoopbackHost(String host) {

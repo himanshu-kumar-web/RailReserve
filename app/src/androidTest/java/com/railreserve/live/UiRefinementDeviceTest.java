@@ -44,16 +44,18 @@ public class UiRefinementDeviceTest {
             server.handler=path->new LocalBackendFixture.Response(200,path.contains("/fare")
                     ? LocalBackendFixture.enquiry("90390","AAA","BBB",LocalDate.now().toString(),"2A",true,875.0)
                     : path.contains("/availability") ? LocalBackendFixture.availableEnquiry("90390","AAA","BBB",LocalDate.now().toString(),"2A")
-                    : path.contains("/schedule") ? "{\"success\":true,\"data\":{\"train\":{\"number\":\"90390\",\"name\":\"TEST FIXTURE Express\",\"classes\":[\"2A\",\"1A\"]},\"stops\":[{\"station\":{\"code\":\"AAA\"},\"sequence\":1}]}}"
+                    : path.contains("/schedule") ? "{\"success\":true,\"data\":{\"train\":{\"number\":\"90390\",\"name\":\"TEST FIXTURE Express\",\"classes\":[\"2A\",\"1A\"]},\"stops\":["
+                            + "{\"station\":{\"code\":\"AAA\",\"name\":\"Alpha\"},\"sequence\":1,\"departure\":\"22:00\",\"departureDay\":0,\"isHalt\":true},"
+                            + "{\"station\":{\"code\":\"BBB\",\"name\":\"Beta\"},\"sequence\":2,\"arrival\":\"06:00\",\"arrivalDay\":1,\"isHalt\":true}]}}"
                     : "{\"success\":true,\"data\":{\"from\":{\"code\":\"AAA\"},\"to\":{\"code\":\"BBB\"},\"count\":1,\"trains\":[{\"number\":\"90390\",\"name\":\"TEST FIXTURE Express\",\"classes\":[\"2A\",\"1A\"],\"from\":{\"departure\":\"22:00\",\"day\":0},\"to\":{\"arrival\":\"06:00\",\"day\":1},\"durationMinutes\":480}]}}");
             Activity home=start(new Intent(instrumentation.getTargetContext(),LiveSearchActivity.class));opened.add(home);
             screenshot("home"); assertEquals(0,server.requests.get());
             Activity results=start(route(LiveTrainResultsActivity.class));opened.add(results);
-            waitFor(()->((ListView)results.findViewById(R.id.liveResultsList)).getAdapter().getCount()==1);screenshot("results");
+            waitFor(()->{ListView list=results.findViewById(R.id.liveResultsList);return list.getAdapter().getCount()-list.getHeaderViewsCount()==1;});screenshot("results");
             Instrumentation.ActivityMonitor detailsMonitor=instrumentation.addMonitor(TrainDetailsActivity.class.getName(),null,false);
             Activity details;
             try {
-                main(()->{ ListView list=results.findViewById(R.id.liveResultsList);list.getAdapter().getView(0,null,list).performClick();return null; });
+                main(()->{ ListView list=results.findViewById(R.id.liveResultsList);list.getAdapter().getView(list.getHeaderViewsCount(),null,list).performClick();return null; });
                 details=instrumentation.waitForMonitorWithTimeout(detailsMonitor,10000);assertNotNull(details);opened.add(details);
             } finally { instrumentation.removeMonitor(detailsMonitor); }
             waitFor(()->details.findViewById(R.id.detailsProgress).getVisibility()==View.GONE);
@@ -110,7 +112,7 @@ public class UiRefinementDeviceTest {
         }
     }
 
-    @Test public void liveDerivedTicketShowsProviderStatusInsteadOfPlaceholderSeat() {
+    @Test public void liveDerivedTicketLabelsItsLocalSeatAndShowsProviderStatus() {
         Activity host=start(new Intent(instrumentation.getTargetContext(),LiveSearchActivity.class));
         try {
             main(()->{
@@ -127,8 +129,8 @@ public class UiRefinementDeviceTest {
                 View row=adapter.getView(0,null,new LinearLayout(host));
                 String details=((TextView)row.findViewById(R.id.bookingClassFare)).getText().toString();
                 assertTrue(details.contains("AVAILABLE"));
-                assertFalse(details.contains("SIM-S1"));
-                assertFalse(details.contains("Seat 99"));
+                assertTrue(details.contains("Local demo seat: SIM-S1 99"));
+                assertTrue(details.contains("No railway seat reserved"));
                 return null;
             });
         } finally { main(()->{ host.finish();return null; }); }

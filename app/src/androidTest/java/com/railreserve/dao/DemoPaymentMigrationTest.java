@@ -23,7 +23,7 @@ public class DemoPaymentMigrationTest {
                 old.setVersion(2);
             }
             SQLiteDatabase upgraded = fixture.helper.getWritableDatabase();
-            assertEquals(7, upgraded.getVersion());
+            assertEquals(8, upgraded.getVersion());
             assertEquals(1, DatabaseUtils.longForQuery(upgraded, "PRAGMA foreign_keys", null));
             Booking legacy = fixture.service.findBookingByPnr("1234567890");
             assertEquals(1L, legacy.getId());

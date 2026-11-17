@@ -129,17 +129,24 @@ public final class FindBookingActivity extends AppCompatActivity {
         resultPnr.setText("DEMO PNR\n" + booking.getPnr());
         TicketUi.bindCopy(resultCard,booking.getPnr());
         boolean cancelled = "CANCELLED".equalsIgnoreCase(booking.getStatus());
-        resultStatus.setText("Local demo: " + booking.getStatus());
-        resultStatus.setBackgroundResource(cancelled ? R.drawable.status_cancelled : R.drawable.status_confirmed);
+        boolean waitingList = "WAITING_LIST".equals(booking.getStatus());
+        resultStatus.setText("Local demo: " + booking.getStatus()
+                + (waitingList ? " · WL " + booking.getWaitlistNumber() : ""));
+        resultStatus.setBackgroundResource(cancelled ? R.drawable.status_cancelled
+                : waitingList ? R.drawable.status_waiting_list : R.drawable.status_confirmed);
         train.setText(booking.getTrainName() + "  ·  " + booking.getTrainNumber());
         route.setText(booking.getSource() + "  →  " + booking.getDestination());
         dateTime.setText("Journey date  " + booking.getJourneyDate() + "\n"
                 + "Departure  " + booking.getDeparture() + "     Arrival  " + booking.getArrival()
                 + (booking.getArrivalDayOffset() > 0 ? " (next day)" : ""));
         passenger.setText(booking.getPassengerName() + "  ·  " + booking.getAge() + " years  ·  " + booking.getGender());
-        seat.setText(booking.getFareSnapshot() == null
+        seat.setText(waitingList
+                ? booking.getTravelClass().getLabel() + "  ·  WL " + booking.getWaitlistNumber()
+                        + "  ·  No seat allocated while waitlisted. Local simulation only."
+                : booking.getFareSnapshot() == null
                 ? booking.getTravelClass().getLabel() + "  ·  " + booking.getCoach() + " " + booking.getSeatNumber()
-                : booking.getTravelClass().getLabel() + "  ·  Provider status: "
+                : booking.getTravelClass().getLabel() + "  ·  Local demo seat: " + booking.getCoach() + " "
+                        + booking.getSeatNumber() + "  ·  Provider status: "
                         + booking.getFareSnapshot().getStatusType() + " ("
                         + booking.getFareSnapshot().getAvailability() + ") · No railway seat reserved.");
         fare.setText((booking.getFareSnapshot() == null ? "Local demo fare: " : "Captured estimate: ") + PaymentReceiptText.amount(Math.multiplyExact((long) booking.getFare(), 100L)));

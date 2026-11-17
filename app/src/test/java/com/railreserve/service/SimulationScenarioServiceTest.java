@@ -18,6 +18,7 @@ public class SimulationScenarioServiceTest {
         SimulationScenarioService service = new SimulationScenarioService(selection -> {
             assertEquals("PRYJ", selection.getSourceCode());
             assertEquals("NDLS", selection.getDestinationCode());
+            assertNull(selection.getFareSnapshot());
             calls.incrementAndGet(); return null;
         });
         service.prepare(request("12345", " pryj ", "ndls", LocalDate.now().toString(), TravelClass.SLEEPER, 1));
@@ -70,10 +71,27 @@ public class SimulationScenarioServiceTest {
         assertFalse(com.railreserve.live.LiveClassCatalog.supportsDemo("EV"));
     }
 
-    @Test public void additionalClassesRequireQuotesAndStaleOrMismatchedQuotesNeverCreateInventory() {
+    @Test public void everySupportedClassCanCreateLocalDemoInventoryWithoutAProviderQuote() {
+        int[] fares = {100, 250, 350, 500, 225, 200, 350, 75};
+        AtomicInteger calls = new AtomicInteger();
+        for (TravelClass clazz : TravelClass.values()) {
+            assertTrue(SimulationScenarioPolicy.supportsCode(clazz.getCode()));
+            SimulationScenarioService service = new SimulationScenarioService(selection -> {
+                assertEquals(clazz, selection.getTravelClass());
+                assertNull(selection.getFareSnapshot());
+                calls.incrementAndGet();
+                return null;
+            });
+            service.prepare(request("12345", "AAA", "BBB", LocalDate.now().toString(), clazz, 0));
+            assertEquals(fares[clazz.ordinal()], SimulationScenarioPolicy.fareRupees(clazz));
+        }
+        assertEquals(TravelClass.values().length, calls.get());
+        assertFalse(SimulationScenarioPolicy.supportsCode("EV"));
+    }
+
+    @Test public void staleOrMismatchedQuotesNeverCreateInventory() {
         SimulationScenarioService service = new SimulationScenarioService(selection -> { fail("Invalid quote reached inventory"); return null; });
         String today = LocalDate.now().toString();
-        assertThrows(IllegalArgumentException.class, () -> service.prepare(request("12345","AAA","BBB",today,TravelClass.FIRST_AC,0)));
         for (boolean stale : new boolean[]{true,false}) {
             com.railreserve.model.FareSnapshot quote = new com.railreserve.model.FareSnapshot("12345","AAA","BBB",today,
                     "1A","GN",87500,"RailCore fare estimate",java.time.Instant.now().minusSeconds(stale ? 61 : 0).toString(),null,null,null,null);

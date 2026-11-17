@@ -22,8 +22,10 @@ final class AppNavigation {
         boolean selected = section.equals(selectedSection);
         button.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(activity,
                 selected ? R.color.teal_soft : R.color.surface)));
-        button.setTextColor(ContextCompat.getColor(activity,
-                selected ? R.color.brand_dark : R.color.muted));
+        int contentColor = ContextCompat.getColor(activity,
+                selected ? R.color.brand_dark : R.color.muted);
+        button.setTextColor(contentColor);
+        button.setCompoundDrawableTintList(ColorStateList.valueOf(contentColor));
         button.setSelected(selected);
         button.setOnClickListener(view -> { if (!selected) navigate(activity, section); });
     }

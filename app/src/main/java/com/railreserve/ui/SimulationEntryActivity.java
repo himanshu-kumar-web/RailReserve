@@ -35,6 +35,9 @@ public final class SimulationEntryActivity extends AppCompatActivity {
         });
         Object extra = getIntent().getSerializableExtra(EXTRA_REQUEST);
         request = extra instanceof SimulationRequest ? (SimulationRequest) extra : null;
+        TextView policy = findViewById(R.id.simulationEntryPolicy);
+        policy.setText(request != null && request.getFareSnapshot() != null
+                ? R.string.quoted_simulation_policy : R.string.local_search_demo_policy);
         findViewById(R.id.simulationEntryRetry).setOnClickListener(view -> prepare());
         findViewById(R.id.simulationEntryBack).setOnClickListener(view -> finish());
         findViewById(R.id.simulationEntryDemoFallback).setOnClickListener(view -> {
@@ -53,7 +56,7 @@ public final class SimulationEntryActivity extends AppCompatActivity {
         executor.execute(() -> {
             DatabaseHelper helper = new DatabaseHelper(getApplicationContext());
             try {
-                if (request == null || request.getFareSnapshot() == null) throw new IllegalArgumentException("Check a matching provider fare in Train Details before starting this simulation.");
+                if (request == null) throw new IllegalArgumentException("Return to train details and choose a train class before starting this simulation.");
                 TrainSearchResult scenario = new SimulationScenarioService(new SQLiteSimulationScenarioDao(helper)).prepare(request);
                 runOnUiThread(() -> {
                     if (destroyed) return;
@@ -92,7 +95,7 @@ public final class SimulationEntryActivity extends AppCompatActivity {
                 .putExtra(BookingActivity.EXTRA_DEPARTURE, scenario.getDeparture())
                 .putExtra(BookingActivity.EXTRA_ARRIVAL, scenario.getArrival())
                 .putExtra(BookingActivity.EXTRA_ARRIVAL_OFFSET, scenario.getArrivalDayOffset())
-                .putExtra(BookingActivity.EXTRA_LIVE_SIMULATION, true)
+                .putExtra(BookingActivity.EXTRA_LIVE_SIMULATION, request.getFareSnapshot() != null)
                 .putExtra(BookingActivity.EXTRA_FARE_SNAPSHOT, request.getFareSnapshot());
     }
 

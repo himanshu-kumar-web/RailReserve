@@ -6,13 +6,13 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
 public final class DatabaseHelper extends SQLiteOpenHelper {
-    private static final String DB_NAME="railreserve.db"; private static final int VERSION=7;
+    private static final String DB_NAME="railreserve.db"; private static final int VERSION=8;
     public DatabaseHelper(Context context){super(context.getApplicationContext(),DB_NAME,null,VERSION);}
     @Override public void onConfigure(SQLiteDatabase db){
         super.onConfigure(db);
         // SQLite requires foreign keys off BEFORE the upgrade transaction when rebuilding CHECK constraints.
         // The migration verifies every reference; onOpen restores enforcement after the transaction commits.
-        db.setForeignKeyConstraintsEnabled(db.getVersion()==0 || db.getVersion()>=6);
+        db.setForeignKeyConstraintsEnabled(db.getVersion()==0 || db.getVersion()>=8);
     }
     @Override public void onOpen(SQLiteDatabase db){super.onOpen(db);db.setForeignKeyConstraintsEnabled(true);}
     @Override public void onCreate(SQLiteDatabase db){
@@ -32,6 +32,7 @@ public final class DatabaseHelper extends SQLiteOpenHelper {
         if(oldVersion<5) createFareSnapshots(db);
         if(oldVersion<6) TravelClassMigration.expand(db);
         if(oldVersion<7) addBookingListVisibilityColumn(db);
+        if(oldVersion<8) upgradeWaitlistBookings(db);
     }
     private void addBookingListVisibilityColumn(SQLiteDatabase db) {
         try (Cursor columns = db.rawQuery("PRAGMA table_info(bookings)", null)) {
@@ -51,10 +52,13 @@ public final class DatabaseHelper extends SQLiteOpenHelper {
                 + "CHECK((availability_text IS NULL AND status_type IS NULL AND availability_source IS NULL AND availability_retrieved_at IS NULL) OR "
                 + "(availability_text IS NOT NULL AND status_type IS NOT NULL AND availability_source IS NOT NULL AND availability_source='RailCore availability' AND availability_retrieved_at IS NOT NULL)))");
         db.execSQL("CREATE TRIGGER fare_snapshot_amount_guard BEFORE INSERT ON booking_fare_snapshots "
-                + "WHEN NOT EXISTS (SELECT 1 FROM bookings b JOIN seats s ON s.seat_id=b.seat_id JOIN journeys j ON j.journey_id=s.journey_id "
-                + "JOIN simulation_scenarios sc ON sc.train_id=j.train_id WHERE b.booking_id=NEW.booking_id AND b.fare*100=NEW.amount_paise "
-                + "AND b.travel_class=NEW.class_code AND sc.display_train_number=NEW.train_number AND sc.source_code=NEW.source_code "
-                + "AND sc.destination_code=NEW.destination_code AND j.journey_date=NEW.journey_date) BEGIN SELECT RAISE(ABORT,'Quote context mismatch'); END");
+                + "WHEN NOT EXISTS (SELECT 1 FROM bookings b JOIN journeys j ON j.journey_id=b.journey_id "
+                + "JOIN simulation_scenarios sc ON sc.train_id=j.train_id LEFT JOIN seats s ON s.seat_id=b.seat_id "
+                + "WHERE b.booking_id=NEW.booking_id AND b.fare*100=NEW.amount_paise AND b.travel_class=NEW.class_code "
+                + "AND sc.display_train_number=NEW.train_number AND sc.source_code=NEW.source_code "
+                + "AND sc.destination_code=NEW.destination_code AND j.journey_date=NEW.journey_date "
+                + "AND ((b.booking_status='WAITING_LIST' AND b.seat_id IS NULL) OR (s.journey_id=j.journey_id AND s.travel_class=b.travel_class))) "
+                + "BEGIN SELECT RAISE(ABORT,'Quote context mismatch'); END");
         db.execSQL("CREATE TRIGGER fare_snapshot_immutable BEFORE UPDATE ON booking_fare_snapshots BEGIN SELECT RAISE(ABORT,'Quote snapshots are immutable'); END");
     }
     private void createSimulationScenarios(SQLiteDatabase db) {
@@ -78,8 +82,38 @@ public final class DatabaseHelper extends SQLiteOpenHelper {
                 + "(refund_status='SIMULATED_REFUNDED' AND refunded_at IS NOT NULL)))");
     }
     private void createBookingsSchema(SQLiteDatabase db){
-        db.execSQL("CREATE TABLE IF NOT EXISTS bookings (booking_id INTEGER PRIMARY KEY AUTOINCREMENT, pnr TEXT NOT NULL UNIQUE, seat_id INTEGER NOT NULL REFERENCES seats(seat_id), passenger_name TEXT NOT NULL CHECK(length(trim(passenger_name)) BETWEEN 2 AND 80), passenger_age INTEGER NOT NULL CHECK(passenger_age BETWEEN 1 AND 120), passenger_gender TEXT NOT NULL CHECK(passenger_gender IN ('Female','Male','Other')), travel_class TEXT NOT NULL CHECK(travel_class IN ('SL','3A','2A','1A','3E','CC','EC','2S')), fare INTEGER NOT NULL CHECK(fare>=0), booking_status TEXT NOT NULL CHECK(booking_status IN ('CONFIRMED','CANCELLED')), booked_at TEXT NOT NULL, cancelled_at TEXT, hidden_from_list INTEGER NOT NULL DEFAULT 0 CHECK(hidden_from_list IN (0,1)))");
+        db.execSQL("CREATE TABLE IF NOT EXISTS bookings (booking_id INTEGER PRIMARY KEY AUTOINCREMENT, pnr TEXT NOT NULL UNIQUE, journey_id INTEGER NOT NULL REFERENCES journeys(journey_id), seat_id INTEGER REFERENCES seats(seat_id), waitlist_number INTEGER CHECK(waitlist_number IS NULL OR waitlist_number>0), passenger_name TEXT NOT NULL CHECK(length(trim(passenger_name)) BETWEEN 2 AND 80), passenger_age INTEGER NOT NULL CHECK(passenger_age BETWEEN 1 AND 120), passenger_gender TEXT NOT NULL CHECK(passenger_gender IN ('Female','Male','Other')), travel_class TEXT NOT NULL CHECK(travel_class IN ('SL','3A','2A','1A','3E','CC','EC','2S')), fare INTEGER NOT NULL CHECK(fare>=0), booking_status TEXT NOT NULL CHECK(booking_status IN ('CONFIRMED','WAITING_LIST','CANCELLED')), booked_at TEXT NOT NULL, cancelled_at TEXT, hidden_from_list INTEGER NOT NULL DEFAULT 0 CHECK(hidden_from_list IN (0,1)), CHECK((seat_id IS NULL AND waitlist_number IS NOT NULL AND booking_status IN ('WAITING_LIST','CANCELLED')) OR (seat_id IS NOT NULL AND waitlist_number IS NULL AND booking_status IN ('CONFIRMED','CANCELLED'))))");
         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS idx_one_confirmed_booking_per_seat ON bookings(seat_id) WHERE booking_status='CONFIRMED'");
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS idx_waitlist_number_per_journey_class ON bookings(journey_id,travel_class,waitlist_number) WHERE waitlist_number IS NOT NULL");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_bookings_booked_at ON bookings(booked_at DESC)");
+    }
+    private void upgradeWaitlistBookings(SQLiteDatabase db) {
+        boolean hasJourneyId = false;
+        try (Cursor columns = db.rawQuery("PRAGMA table_info(bookings)", null)) {
+            while (columns.moveToNext()) {
+                if ("journey_id".equals(columns.getString(columns.getColumnIndexOrThrow("name")))) {
+                    hasJourneyId = true;
+                    break;
+                }
+            }
+        }
+        if (!hasJourneyId) {
+            Long bookingSequence = null;
+            try (Cursor sequence = db.rawQuery("SELECT seq FROM sqlite_sequence WHERE name='bookings'", null)) {
+                if (sequence.moveToFirst()) bookingSequence = sequence.getLong(0);
+            }
+            db.execSQL("CREATE TABLE bookings_v8 (booking_id INTEGER PRIMARY KEY AUTOINCREMENT, pnr TEXT NOT NULL UNIQUE, journey_id INTEGER NOT NULL REFERENCES journeys(journey_id), seat_id INTEGER REFERENCES seats(seat_id), waitlist_number INTEGER CHECK(waitlist_number IS NULL OR waitlist_number>0), passenger_name TEXT NOT NULL CHECK(length(trim(passenger_name)) BETWEEN 2 AND 80), passenger_age INTEGER NOT NULL CHECK(passenger_age BETWEEN 1 AND 120), passenger_gender TEXT NOT NULL CHECK(passenger_gender IN ('Female','Male','Other')), travel_class TEXT NOT NULL CHECK(travel_class IN ('SL','3A','2A','1A','3E','CC','EC','2S')), fare INTEGER NOT NULL CHECK(fare>=0), booking_status TEXT NOT NULL CHECK(booking_status IN ('CONFIRMED','WAITING_LIST','CANCELLED')), booked_at TEXT NOT NULL, cancelled_at TEXT, hidden_from_list INTEGER NOT NULL DEFAULT 0 CHECK(hidden_from_list IN (0,1)), CHECK((seat_id IS NULL AND waitlist_number IS NOT NULL AND booking_status IN ('WAITING_LIST','CANCELLED')) OR (seat_id IS NOT NULL AND waitlist_number IS NULL AND booking_status IN ('CONFIRMED','CANCELLED'))))");
+            db.execSQL("INSERT INTO bookings_v8(booking_id,pnr,journey_id,seat_id,passenger_name,passenger_age,passenger_gender,travel_class,fare,booking_status,booked_at,cancelled_at,hidden_from_list) SELECT b.booking_id,b.pnr,s.journey_id,b.seat_id,b.passenger_name,b.passenger_age,b.passenger_gender,b.travel_class,b.fare,b.booking_status,b.booked_at,b.cancelled_at,b.hidden_from_list FROM bookings b JOIN seats s ON s.seat_id=b.seat_id");
+            db.execSQL("DROP TABLE bookings");
+            db.execSQL("ALTER TABLE bookings_v8 RENAME TO bookings");
+            if (bookingSequence != null) {
+                db.execSQL("UPDATE sqlite_sequence SET seq=MAX(seq,?) WHERE name='bookings'", new Object[]{bookingSequence});
+            }
+        }
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS idx_one_confirmed_booking_per_seat ON bookings(seat_id) WHERE booking_status='CONFIRMED'");
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS idx_waitlist_number_per_journey_class ON bookings(journey_id,travel_class,waitlist_number) WHERE waitlist_number IS NOT NULL");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_bookings_booked_at ON bookings(booked_at DESC)");
+        db.execSQL("DROP TRIGGER IF EXISTS fare_snapshot_amount_guard");
+        db.execSQL("CREATE TRIGGER fare_snapshot_amount_guard BEFORE INSERT ON booking_fare_snapshots WHEN NOT EXISTS (SELECT 1 FROM bookings b JOIN journeys j ON j.journey_id=b.journey_id JOIN simulation_scenarios sc ON sc.train_id=j.train_id LEFT JOIN seats s ON s.seat_id=b.seat_id WHERE b.booking_id=NEW.booking_id AND b.fare*100=NEW.amount_paise AND b.travel_class=NEW.class_code AND sc.display_train_number=NEW.train_number AND sc.source_code=NEW.source_code AND sc.destination_code=NEW.destination_code AND j.journey_date=NEW.journey_date AND ((b.booking_status='WAITING_LIST' AND b.seat_id IS NULL) OR (s.journey_id=j.journey_id AND s.travel_class=b.travel_class))) BEGIN SELECT RAISE(ABORT,'Quote context mismatch'); END");
     }
 }

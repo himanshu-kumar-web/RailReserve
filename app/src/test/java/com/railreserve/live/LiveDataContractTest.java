@@ -33,6 +33,8 @@ public class LiveDataContractTest {
             assertEquals(LiveDataParser.userMessage(code), error.getMessage());
             assertFalse(error.getMessage().contains("private-provider-text"));
         }
+        assertEquals("The provider returned data that could not be verified for this request. Retry the check; no booking was made.",
+                LiveDataParser.userMessage("INVALID_PROVIDER_RESPONSE"));
     }
 
     @Test public void trainSearchAllowsEmptyResultsAndPreservesUnknownFields() throws Exception {
@@ -66,5 +68,9 @@ public class LiveDataContractTest {
         assertNull(fare.getTotal());
         assertThrows(BackendException.class, () -> LiveDataParser.parseFare(new JSONObject("{\"fareKnown\":true}")));
         assertThrows(BackendException.class, () -> LiveDataParser.parseAvailability(new JSONObject("{}")));
+        LiveAvailability unavailableClass = LiveDataParser.parseAvailability(
+                new JSONObject("{\"availabilityStatus\":null,\"statusType\":\"UNKNOWN\"}"));
+        assertEquals("Availability not provided for this class", unavailableClass.getStatus());
+        assertEquals("UNKNOWN", unavailableClass.getStatusType());
     }
 }

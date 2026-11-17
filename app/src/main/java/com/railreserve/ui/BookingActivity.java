@@ -149,6 +149,12 @@ public class BookingActivity extends AppCompatActivity {
         seatSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 Seat seat = (Seat) parent.getItemAtPosition(position);
+                if (seat == null) {
+                    if (isWaitingListSimulation()) {
+                        selectedSeatSummary.setText("Waiting list · no seat is allocated until local simulated confirmation.");
+                    }
+                    return;
+                }
                 selectedSeatSummary.setText(liveSimulation && fareSnapshot != null
                         ? "Provider status: " + fareSnapshot.getStatusType() + " (" + fareSnapshot.getAvailability() + "). No railway seat is assigned."
                         : "Selected seat  |  " + seat.getCoach() + " - " + seat.getNumber());
@@ -204,6 +210,15 @@ public class BookingActivity extends AppCompatActivity {
     }
 
     private void loadAvailableSeats() {
+        if (isWaitingListSimulation()) {
+            progress.setVisibility(View.GONE);
+            seatAdapter.clear();
+            selectedSeatSummary.setText("Waiting list · no seat is allocated until local simulated confirmation.");
+            seatStatus.setText("This local demo booking will receive a waiting-list number. No seat is reserved.");
+            seatStatus.setVisibility(View.VISIBLE);
+            confirmButton.setEnabled(true);
+            return;
+        }
         progress.setVisibility(View.VISIBLE);
         seatStatus.setText(liveSimulation ? "Preparing local demo checkout..." : "Loading available seats...");
         seatStatus.setVisibility(View.VISIBLE);
@@ -276,7 +291,8 @@ public class BookingActivity extends AppCompatActivity {
         Seat selectedSeat = liveSimulation
                 ? (seatAdapter.getCount() > 0 ? seatAdapter.getItem(0) : null)
                 : (Seat) seatSpinner.getSelectedItem();
-        if (selectedSeat == null) {
+        boolean waitingList = isWaitingListSimulation();
+        if (selectedSeat == null && !waitingList) {
             seatStatus.setText(liveSimulation
                     ? "No local demo seats remain for this train, date and class."
                     : "Choose an available seat.");
@@ -288,9 +304,12 @@ public class BookingActivity extends AppCompatActivity {
             seatStatus.setText("A matching provider fare is required. Return to Train Details."); seatStatus.setVisibility(View.VISIBLE); return;
         }
         KeyboardHelper.dismiss(this);
-        BookingRequest request = new BookingRequest(journeyId, selectedSeat.getId(),
+        BookingRequest request = new BookingRequest(journeyId, selectedSeat == null ? 0 : selectedSeat.getId(),
                 travelClass, name, age, String.valueOf(genderSpinner.getSelectedItem()), null, null, fareSnapshot);
-        String seatSummary = liveSimulation
+        String seatSummary = waitingList
+                ? "\nProvider status: WAITLIST (" + fareSnapshot.getAvailability() + ")"
+                        + "\nNo seat is allocated while the local booking is waitlisted."
+                : liveSimulation
                 ? "\nProvider status: " + fareSnapshot.getStatusType() + " (" + fareSnapshot.getAvailability() + ")"
                         + "\nNo railway seat is assigned or reserved; this is a local demo booking."
                 : "\nSelected seat: " + selectedSeat.getCoach() + " - " + selectedSeat.getNumber();
@@ -306,6 +325,7 @@ public class BookingActivity extends AppCompatActivity {
     }
 
     private long checkoutAmount(Seat seat) { return fareSnapshot == null ? Math.multiplyExact((long) seat.getFare(),100L) : fareSnapshot.getAmountPaise(); }
+    private boolean isWaitingListSimulation() { return liveSimulation && fareSnapshot != null && fareSnapshot.isWaitingList(); }
 
     private void configureCheckout() {
         checkoutSummary = findViewById(R.id.checkoutSummary);
@@ -341,7 +361,7 @@ public class BookingActivity extends AppCompatActivity {
         findViewById(R.id.bookingForm).setVisibility(reviewing ? View.GONE : View.VISIBLE);
         findViewById(R.id.demoCheckoutPanel).setVisibility(reviewing ? View.VISIBLE : View.GONE);
         progress.setVisibility(submitting ? View.VISIBLE : View.GONE);
-        confirmButton.setEnabled(!reviewing && seatAdapter.getCount() > 0
+        confirmButton.setEnabled(!reviewing && (seatAdapter.getCount() > 0 || isWaitingListSimulation())
                 && (!liveSimulation || fareSnapshot != null));
         if (!reviewing) return;
         boolean complete = result.getBooking() != null;
@@ -365,7 +385,9 @@ public class BookingActivity extends AppCompatActivity {
                 case PROCESSING: message = "Processing Demo UPI simulation... No real money is involved."; break;
                 case COMMITTING: message = "Finalizing your demo reservation. Please wait for confirmation."; break;
                 case RECOVERING: message = "Checking this checkout for an existing reservation..."; break;
-                case COMPLETE: message = "CONFIRMED".equals(result.getBooking().getStatus())
+                case COMPLETE: message = "WAITING_LIST".equals(result.getBooking().getStatus())
+                        ? "Demo payment SUCCESS. Local wait-list booking saved; no seat is allocated."
+                        : "CONFIRMED".equals(result.getBooking().getStatus())
                         ? result.getBooking().getPayment() == null ? "Local demo booking confirmed. No demo-payment record exists."
                         : "Demo payment SUCCESS. Your local booking is confirmed." : "This demo reservation was cancelled."; break;
                 default: message = "Review the details, then tap Pay (Demo).";
@@ -377,7 +399,8 @@ public class BookingActivity extends AppCompatActivity {
     private void showConfirmation(Booking booking) {
         if (confirmationDialog != null && confirmationDialog.isShowing()) return;
         View confirmation = getLayoutInflater().inflate(R.layout.dialog_booking_confirmation, null);
-        ((TextView) confirmation.findViewById(R.id.confirmationStatus)).setText("Local demo: " + booking.getStatus());
+        ((TextView) confirmation.findViewById(R.id.confirmationStatus)).setText("Local demo: " + booking.getStatus()
+                + ("WAITING_LIST".equals(booking.getStatus()) ? " · WL " + booking.getWaitlistNumber() : ""));
         ((TextView) confirmation.findViewById(R.id.confirmationPnr)).setText(booking.getPnr());
         TicketUi.bindCopy(confirmation,booking.getPnr());
         ((TextView) confirmation.findViewById(R.id.confirmationTrain)).setText(
@@ -389,24 +412,30 @@ public class BookingActivity extends AppCompatActivity {
                         + booking.getArrival() + (booking.getArrivalDayOffset() > 0 ? " (+1 day)" : ""));
         ((TextView) confirmation.findViewById(R.id.confirmationPassenger)).setText(
                 "Passenger  |  " + booking.getPassengerName() + ", age " + booking.getAge());
-        ((TextView) confirmation.findViewById(R.id.confirmationSeatClass)).setText(booking.getFareSnapshot() == null
+        ((TextView) confirmation.findViewById(R.id.confirmationSeatClass)).setText("WAITING_LIST".equals(booking.getStatus())
+                ? "Class  |  " + booking.getTravelClass().getLabel() + "\nWL " + booking.getWaitlistNumber()
+                        + " · No seat allocated while waitlisted.\nLocal simulation only; not a railway-confirmed ticket."
+                : booking.getFareSnapshot() == null
                 ? "Seat  |  " + booking.getCoach() + " - " + booking.getSeatNumber()
                         + "     Class  |  " + booking.getTravelClass().getLabel()
                 : "Class  |  " + booking.getTravelClass().getLabel()
+                                + "\nLocal demo seat  |  " + booking.getCoach() + " - " + booking.getSeatNumber()
                         + "\nProvider status  |  " + booking.getFareSnapshot().getStatusType()
-                        + " (" + booking.getFareSnapshot().getAvailability() + ")"
-                        + "\nNo railway seat is assigned or reserved. Local demo only.");
+                                + " (" + booking.getFareSnapshot().getAvailability() + ")"
+                                + "\nNo railway seat is reserved. Local simulation only; not an IRCTC confirmation.");
         ((TextView) confirmation.findViewById(R.id.confirmationFare)).setText(
                 "Demo checkout amount: " + PaymentReceiptText.amount(Math.multiplyExact((long) booking.getFare(),100L)));
 
         ((TextView) confirmation.findViewById(R.id.confirmationPayment)).setText(PaymentReceiptText.receipt(booking));
         Button downloadPdf = confirmation.findViewById(R.id.downloadTicketPdf);
         boolean confirmed = "CONFIRMED".equals(booking.getStatus());
-        downloadPdf.setVisibility(confirmed ? View.VISIBLE : View.GONE);
+        boolean waitingList = "WAITING_LIST".equals(booking.getStatus());
+        downloadPdf.setVisibility(confirmed || waitingList ? View.VISIBLE : View.GONE);
         downloadPdf.setOnClickListener(view -> ticketPdfLauncher.launch(
                 "RailReserve-Ticket-" + booking.getPnr() + ".pdf"));
         confirmationDialog = new AlertDialog.Builder(this)
-                .setTitle(confirmed ? "Local demo booking confirmed" : "Local demo booking cancelled")
+                .setTitle("WAITING_LIST".equals(booking.getStatus()) ? "Local demo wait-list booking"
+                        : confirmed ? "Local demo booking confirmed" : "Local demo booking cancelled")
                 .setView(confirmation)
                 .setCancelable(false)
                 .setPositiveButton("My bookings", (dialog, which) -> {
@@ -426,7 +455,8 @@ public class BookingActivity extends AppCompatActivity {
         if (destination == null) return;
         BookingSubmissionViewModel.State result = submission.getState().getValue();
         Booking booking = result == null ? null : result.getBooking();
-        if (booking == null || !"CONFIRMED".equals(booking.getStatus())) {
+        if (booking == null || (!"CONFIRMED".equals(booking.getStatus())
+                && !"WAITING_LIST".equals(booking.getStatus()))) {
             android.widget.Toast.makeText(this, R.string.ticket_pdf_unavailable, android.widget.Toast.LENGTH_LONG).show();
             return;
         }

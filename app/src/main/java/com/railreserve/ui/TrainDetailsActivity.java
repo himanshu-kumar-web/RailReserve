@@ -15,7 +15,11 @@ import com.railreserve.BuildConfig;
 import com.railreserve.R;
 import com.railreserve.live.LiveClassCatalog;
 import com.railreserve.live.LiveTrain;
+import com.railreserve.live.LiveTrainStop;
+import com.railreserve.live.TrainEnquiryRoute;
+import com.railreserve.live.TrainScheduleMatcher;
 import com.railreserve.model.SimulationRequest;
+import com.railreserve.model.SimulationScenarioPolicy;
 import com.railreserve.model.TravelClass;
 import com.railreserve.service.SimulationScenarioService;
 import java.util.HashMap;
@@ -26,6 +30,7 @@ import java.util.Map;
 public final class TrainDetailsActivity extends AppCompatActivity {
     public static final String EXTRA_TRAIN = "selected_live_train";
     private LiveTrain train;
+    private LiveTrain routeResult;
     private TrainDetailsViewModel model;
     private String sourceCode, sourceName, destinationCode, destinationName, date;
     private boolean opening;
@@ -49,16 +54,15 @@ public final class TrainDetailsActivity extends AppCompatActivity {
             findViewById(R.id.detailsSchedule).setEnabled(false); return;
         }
         train = (LiveTrain) selected;
+        routeResult = train;
         sourceCode = getIntent().getStringExtra(LiveSearchActivity.EXTRA_SOURCE_CODE);
         sourceName = getIntent().getStringExtra(LiveSearchActivity.EXTRA_SOURCE_NAME);
         destinationCode = getIntent().getStringExtra(LiveSearchActivity.EXTRA_DESTINATION_CODE);
         destinationName = getIntent().getStringExtra(LiveSearchActivity.EXTRA_DESTINATION_NAME);
         date = getIntent().getStringExtra(LiveSearchActivity.EXTRA_DATE);
         ((TextView) findViewById(R.id.detailsHeading)).setText(value(train.getName()) + " · " + value(train.getNumber()));
-        ((TextView) findViewById(R.id.detailsJourney)).setText(label(sourceName, sourceCode) + " → " + label(destinationName, destinationCode)
-                + "\nJourney date: " + value(date) + "\nDeparture: " + value(train.getDeparture())
-                + "  →  Arrival: " + value(train.getArrival()) + arrivalOffset());
         model = new ViewModelProvider(this).get(TrainDetailsViewModel.class);
+        updateJourneySummary();
         findViewById(R.id.detailsRetry).setOnClickListener(view -> model.loadSchedule(train.getNumber(), true));
         findViewById(R.id.detailsSchedule).setOnClickListener(view -> {
             if (opening) return; opening = true;
@@ -77,6 +81,8 @@ public final class TrainDetailsActivity extends AppCompatActivity {
     }
 
     private void render() {
+        train = model.schedule == null ? routeResult : TrainScheduleMatcher.apply(routeResult, model.schedule);
+        updateJourneySummary();
         List<String> classes = verifiedClasses();
         List<String> days = train.getRunDays() != null ? train.getRunDays() : model.schedule == null ? null : model.schedule.getRunDays();
         Integer duration = train.getDurationMinutes();
@@ -94,7 +100,10 @@ public final class TrainDetailsActivity extends AppCompatActivity {
         if (model.error != null) classStatus += "\n" + model.error;
         else if (model.schedule != null && model.schedule.getStops().isEmpty()) classStatus += "\n" + getString(R.string.schedule_not_provided);
         ((TextView) findViewById(R.id.detailsClassesStatus)).setText(classStatus);
-        boolean fallback = classes == null && !model.loading;
+        boolean hasLocalClass = classes != null && classes.stream().anyMatch(SimulationScenarioPolicy::supportsCode);
+        boolean fallback = classes == null || classes.isEmpty()
+                || (!hasLocalClass && (!train.isRouteVerified()
+                || !BuildConfig.LIVE_FARE_ENABLED || !BuildConfig.LIVE_AVAILABILITY_ENABLED));
         if (!java.util.Objects.equals(renderedClasses, classes) || demoFallbackRendered != fallback || cards.isEmpty()) {
             renderedClasses = classes; demoFallbackRendered = fallback; cards.clear();
             LinearLayout verified = findViewById(R.id.detailsClasses); verified.removeAllViews();
@@ -102,13 +111,13 @@ public final class TrainDetailsActivity extends AppCompatActivity {
             findViewById(R.id.detailsDemoOnlyNotice).setVisibility(fallback ? View.VISIBLE : View.GONE);
             if (classes != null) for (String code : classes) addCard(verified, code, true);
             if (fallback) {
-                Button localDemo = new Button(this); localDemo.setText(R.string.open_local_demo);
-                localDemo.setMinHeight((int) (48 * getResources().getDisplayMetrics().density));
-                localDemo.setOnClickListener(view -> { if (!opening) { opening = true; startActivity(new Intent(this,com.railreserve.MainActivity.class)); } });
-                demo.addView(localDemo);
+                addCard(demo, TravelClass.SLEEPER.getCode(), false);
+                addCard(demo, TravelClass.AC_THREE_TIER.getCode(), false);
             }
         }
-        for (Map.Entry<String, View> entry : cards.entrySet()) updateCard(entry.getValue(), entry.getKey(), classes != null);
+        for (Map.Entry<String, View> entry : cards.entrySet()) {
+            updateCard(entry.getValue(), entry.getKey(), classes != null && classes.contains(entry.getKey()));
+        }
     }
 
     private void addCard(LinearLayout parent, String code, boolean verified) {
@@ -118,8 +127,8 @@ public final class TrainDetailsActivity extends AppCompatActivity {
         String source = train.getClasses() != null ? train.getClassSource() : model.schedule == null ? null : model.schedule.getClassSource();
         ((TextView) card.findViewById(R.id.classSource)).setText(verified ? "Offered · "
                 + (source == null ? "provider data via RailReserve backend" : source) : getString(R.string.demo_class_not_verified));
-        card.findViewById(R.id.classFareCheck).setOnClickListener(view -> model.check(train, verifiedClasses(), sourceCode, destinationCode, date, code, true));
-        card.findViewById(R.id.classAvailabilityCheck).setOnClickListener(view -> model.check(train, verifiedClasses(), sourceCode, destinationCode, date, code, false));
+        card.findViewById(R.id.classFareCheck).setOnClickListener(view -> checkClass(code, true));
+        card.findViewById(R.id.classAvailabilityCheck).setOnClickListener(view -> checkClass(code, false));
         Button book = card.findViewById(R.id.classDemoBook);
         book.setAlpha(1f);
         book.setText(getString(R.string.simulate_class_booking, code));
@@ -127,48 +136,93 @@ public final class TrainDetailsActivity extends AppCompatActivity {
     }
 
     private SimulationRequest selection(String code, com.railreserve.model.FareSnapshot quote) {
-        return new SimulationRequest(train.getNumber(),train.getName(),sourceCode,sourceName,destinationCode,destinationName,
-                date,TravelClass.fromCode(code),train.getDeparture(),train.getArrival(),train.getDepartureDay(),train.getArrivalDay(),quote);
+        TrainEnquiryRoute route = enquiryRoute();
+        if (route == null) {
+            return new SimulationRequest(train.getNumber(),train.getName(),sourceCode,sourceName,destinationCode,destinationName,
+                    date,TravelClass.fromCode(code),train.getDeparture(),train.getArrival(),train.getDepartureDay(),train.getArrivalDay(),quote);
+        }
+        LiveTrainStop boarding = route.getBoardingStop(), alighting = route.getAlightingStop();
+        return new SimulationRequest(train.getNumber(),train.getName(),
+                boarding.getStation().getCode(),boarding.getStation().getName(),
+                alighting.getStation().getCode(),alighting.getStation().getName(),
+                date,TravelClass.fromCode(code),boarding.getDeparture(),alighting.getArrival(),
+                boarding.getDepartureDay(),alighting.getArrivalDay(),quote);
+    }
+
+    private TrainEnquiryRoute enquiryRoute() {
+        return TrainScheduleMatcher.resolveEnquiryRoute(routeResult, model.schedule);
+    }
+
+    private void checkClass(String code, boolean fare) {
+        TrainEnquiryRoute route = enquiryRoute();
+        if (route == null) {
+            android.widget.Toast.makeText(this,
+                    "A verified scheduled boarding and destination route is required for live checks.",
+                    android.widget.Toast.LENGTH_LONG).show();
+            return;
+        }
+        model.check(train, verifiedClasses(),
+                route.getBoardingStop().getStation().getCode(),
+                route.getAlightingStop().getStation().getCode(),date,code,fare);
     }
 
     private String bookingBlockReason(String code, boolean verified) {
-        if (!verified) return "This class has not been verified for the selected train.";
+        if (!verified) return "This travel class is not verified for the selected train.";
+        if (!BuildConfig.LIVE_FARE_ENABLED || !BuildConfig.LIVE_AVAILABILITY_ENABLED) {
+            return "Fare and availability checks are disabled in this build.";
+        }
+        TrainEnquiryRoute route = enquiryRoute();
+        if (route == null) return "The schedule does not provide a valid boarding-to-destination route for live checks.";
         if (!LiveClassCatalog.supportsDemo(code)) return "Demo booking does not support class " + code + ".";
         try {
             SimulationScenarioService.validateJourney(selection(code,null));
-            model.capture(train,sourceCode,destinationCode,date,code);
+            model.capture(train,route.getBoardingStop().getStation().getCode(),
+                    route.getAlightingStop().getStation().getCode(),date,code);
             return null;
         } catch(IllegalArgumentException blocked) { return blocked.getMessage(); }
     }
 
     private void updateCard(View card, String code, boolean verified) {
         TrainDetailsViewModel.Check fare = model.getCheck(code, true), availability = model.getCheck(code, false);
-        boolean fareEnabled = verified && BuildConfig.LIVE_FARE_ENABLED, availabilityEnabled = verified && BuildConfig.LIVE_AVAILABILITY_ENABLED;
-        ((TextView) card.findViewById(R.id.classFare)).setText(!fareEnabled ? getString(R.string.fare_plan_unavailable)
+        boolean routeAvailable = enquiryRoute() != null;
+        boolean fareEnabled = verified && routeAvailable && BuildConfig.LIVE_FARE_ENABLED,
+                availabilityEnabled = verified && routeAvailable && BuildConfig.LIVE_AVAILABILITY_ENABLED;
+        ((TextView) card.findViewById(R.id.classFare)).setText(!fareEnabled
+                ? getString(!verified ? R.string.live_class_unverified
+                        : !routeAvailable ? R.string.live_check_route_unavailable : R.string.fare_plan_unavailable)
                 : fare == null ? getString(R.string.fare_not_checked) : fare.loading ? getString(R.string.checking_fare) : UiText.enquiry(fare.text));
-        ((TextView) card.findViewById(R.id.classAvailability)).setText(!availabilityEnabled ? getString(R.string.availability_unavailable)
+        ((TextView) card.findViewById(R.id.classAvailability)).setText(!availabilityEnabled
+                ? getString(!verified ? R.string.live_class_unverified
+                        : !routeAvailable ? R.string.live_check_route_unavailable : R.string.availability_unavailable)
                 : availability == null ? getString(R.string.availability_not_checked) : availability.loading ? getString(R.string.checking_availability) : UiText.enquiry(availability.text));
         String blocked = bookingBlockReason(code,verified);
         card.findViewById(R.id.classDemoBook).setEnabled(blocked == null);
-        ((TextView) card.findViewById(R.id.classDemoNotice)).setText(blocked == null ? getString(R.string.demo_uses_quote) : blocked);
-        card.findViewById(R.id.classDemoNotice).setVisibility(blocked == null ? View.GONE : View.VISIBLE);
+        TextView notice = card.findViewById(R.id.classDemoNotice);
+        notice.setText(blocked != null ? blocked : getString(train.isRouteVerified()
+                ? R.string.local_demo_booking_notice : R.string.local_unverified_route_booking_notice));
+        notice.setVisibility(blocked != null || !train.isRouteVerified() ? View.VISIBLE : View.GONE);
         ((Button) card.findViewById(R.id.classFareCheck)).setText(fare != null && fare.loading ? R.string.checking_fare
                 : fare != null && fare.expired ? R.string.recheck_expired_fare : R.string.check_fare);
         ((Button) card.findViewById(R.id.classAvailabilityCheck)).setText(availability != null && availability.loading ? R.string.checking_availability
                 : availability != null && availability.expired ? R.string.recheck_availability : R.string.check_availability);
-        card.findViewById(R.id.classFareCheck).setVisibility(fareEnabled ? View.VISIBLE : View.GONE);
-        card.findViewById(R.id.classFareCheck).setEnabled(fare == null || !fare.loading);
-        card.findViewById(R.id.classAvailabilityCheck).setVisibility(availabilityEnabled ? View.VISIBLE : View.GONE);
-        card.findViewById(R.id.classAvailabilityCheck).setEnabled(availability == null || !availability.loading);
+        card.findViewById(R.id.classFareCheck).setVisibility(verified && BuildConfig.LIVE_FARE_ENABLED ? View.VISIBLE : View.GONE);
+        card.findViewById(R.id.classFareCheck).setEnabled(fareEnabled && (fare == null || !fare.loading));
+        card.findViewById(R.id.classAvailabilityCheck).setVisibility(verified && BuildConfig.LIVE_AVAILABILITY_ENABLED ? View.VISIBLE : View.GONE);
+        card.findViewById(R.id.classAvailabilityCheck).setEnabled(availabilityEnabled && (availability == null || !availability.loading));
         card.findViewById(R.id.classProgress).setVisibility((fare != null && fare.loading) || (availability != null && availability.loading) ? View.VISIBLE : View.GONE);
     }
 
     private void simulate(String code) {
         if (opening) return;
-        String blocked = bookingBlockReason(code,verifiedClasses()!=null && verifiedClasses().contains(code));
+        List<String> classes = verifiedClasses();
+        boolean verified = classes != null && classes.contains(code);
+        String blocked = bookingBlockReason(code, verified);
         if (blocked != null) { android.widget.Toast.makeText(this,blocked,android.widget.Toast.LENGTH_LONG).show(); render(); return; }
         try {
-            com.railreserve.model.FareSnapshot quote = model.capture(train,sourceCode,destinationCode,date,code);
+            TrainEnquiryRoute route = enquiryRoute();
+            com.railreserve.model.FareSnapshot quote = model.capture(train,
+                    route.getBoardingStop().getStation().getCode(),
+                    route.getAlightingStop().getStation().getCode(),date,code);
             opening = true;
             startActivity(new Intent(this,SimulationEntryActivity.class).putExtra(SimulationEntryActivity.EXTRA_REQUEST,selection(code,quote)));
         } catch (IllegalArgumentException expired) {
@@ -178,9 +232,35 @@ public final class TrainDetailsActivity extends AppCompatActivity {
         }
     }
     private String arrivalOffset() {
+        if (!train.isBoardingStopVerified() || !train.isDestinationStopVerified()) return " (day offset unverified)";
         if (train.getArrivalDay() == null || train.getDepartureDay() == null) return " (day offset not provided)";
         long days = (long) train.getArrivalDay() - train.getDepartureDay();
         return days < 0 ? " (day offset not provided)" : days == 0 ? " (same day)" : " (+" + days + " day" + (days == 1 ? "" : "s") + ")";
+    }
+    private void updateJourneySummary() {
+        String boarding = train.isBoardingStopVerified()
+                ? label(train.getBoardingStation().getName(), train.getBoardingStation().getCode())
+                : "Not verified at " + label(sourceName, sourceCode);
+        String alighting = train.isDestinationStopVerified()
+                ? label(train.getAlightingStation().getName(), train.getAlightingStation().getCode())
+                : "Not verified at " + label(destinationName, destinationCode);
+        String origin = train.getActualOrigin() == null ? "Not provided" : train.getActualOrigin().getLabel();
+        String terminus = train.getActualDestination() == null ? "Not provided" : train.getActualDestination().getLabel();
+        TrainEnquiryRoute enquiry = enquiryRoute();
+        String checkRoute = enquiry == null
+                ? "\nFare / availability checks and booking: no valid scheduled route"
+                : "\nFare / availability checks and local demo booking: "
+                        + label(enquiry.getBoardingStop().getStation().getName(), enquiry.getBoardingStop().getStation().getCode())
+                        + " at " + value(enquiry.getBoardingStop().getDeparture())
+                        + " → "
+                        + label(enquiry.getAlightingStop().getStation().getName(), enquiry.getAlightingStop().getStation().getCode())
+                        + " at " + value(enquiry.getAlightingStop().getArrival());
+        ((TextView) findViewById(R.id.detailsJourney)).setText(
+                "Searched: " + label(sourceName, sourceCode) + " → " + label(destinationName, destinationCode)
+                        + "\nTrain origin: " + origin + " · Train destination: " + terminus
+                        + "\nBoarding: " + boarding + " at " + value(train.isBoardingStopVerified() ? train.getDeparture() : null)
+                        + " → Alight: " + alighting + " at " + value(train.isDestinationStopVerified() ? train.getArrival() : null)
+                        + arrivalOffset() + "\nJourney date: " + value(date) + checkRoute);
     }
     private String value(String text) { return text == null || text.trim().isEmpty() ? "Not provided" : text; }
     private String label(String name, String code) { return name == null || name.trim().isEmpty() ? value(code) : name + " (" + value(code) + ")"; }

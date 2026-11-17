@@ -146,6 +146,7 @@ export function normalizeAvailability(data, requested) {
   const classes = Array.isArray(item.classes) ? item.classes : [];
   const result = classes.find((entry) => object(entry).class_code === requested.classCode);
   const rawStatus = text(object(result).availability_text) || text(object(result).status);
+  const availabilityStatus = rawStatus || `Availability not provided for class ${requested.classCode}`;
   return {
     providerSource: 'RailCore availability', retrievedAt: new Date().toISOString(),
     inventoryUpdatedAt: text(object(result).last_updated_at) || text(item.inventory_updated_at),
@@ -155,7 +156,7 @@ export function normalizeAvailability(data, requested) {
     classCode: requested.classCode, quotaCode: text(item.quota) || requested.quotaCode,
     requestedJourneyDate: requested.journeyDateValue,
     availabilityDate: text(item.journey_date),
-    availabilityStatus: rawStatus,
+    availabilityStatus,
     statusType: classifyAvailability(rawStatus),
   };
 }

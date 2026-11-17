@@ -50,13 +50,18 @@ public final class BookingSubmissionViewModel extends ViewModel {
             try {
                 String reference = bundle.getString("reference");
                 if (reference == null || !reference.matches("DEMO-CHK-[a-fA-F0-9-]{36}")
-                        || bundle.getLong("journey") <= 0 || bundle.getLong("seat") <= 0
+                        || bundle.getLong("journey") <= 0
                         || !bundle.containsKey("amount") || bundle.getLong("amount") < 0) {
                     throw new IllegalArgumentException("Invalid saved checkout");
                 }
+                com.railreserve.model.FareSnapshot snapshot =
+                        (com.railreserve.model.FareSnapshot) bundle.getSerializable("fareSnapshot");
+                if (bundle.getLong("seat") <= 0 && (snapshot == null || !snapshot.isWaitingList())) {
+                    throw new IllegalArgumentException("A seat is required unless this is a wait-list checkout");
+                }
                 draft = new BookingRequest(bundle.getLong("journey"), bundle.getLong("seat"),
                         TravelClass.fromCode(bundle.getString("class")), bundle.getString("name"),
-                        bundle.getInt("age"), bundle.getString("gender"), bundle.getString("reference"), bundle.getLong("amount"), (com.railreserve.model.FareSnapshot) bundle.getSerializable("fareSnapshot"));
+                        bundle.getInt("age"), bundle.getString("gender"), bundle.getString("reference"), bundle.getLong("amount"), snapshot);
                 state.setValue(new State(Stage.RECOVERING, null, null));
             } catch (RuntimeException exception) { draft = null; saved.remove("demoCheckoutDraft"); saved.remove("demoCheckoutSummary"); }
         }
@@ -77,6 +82,10 @@ public final class BookingSubmissionViewModel extends ViewModel {
             if (amountPaise != request.getFareSnapshot().getAmountPaise() || request.getTravelClass() == null
                     || !request.getTravelClass().getCode().equals(request.getFareSnapshot().getClassCode()))
                 throw new IllegalArgumentException("Review the matching class and captured provider fare before payment.");
+        }
+        boolean waitingList = request.getFareSnapshot() != null && request.getFareSnapshot().isWaitingList();
+        if ((request.getSeatId() <= 0) != waitingList) {
+            throw new IllegalArgumentException("A seat is required for confirmed availability; a wait-listed booking must not reserve one.");
         }
         // Once reviewed, this immutable amount belongs to the local checkout, including retries/recovery.
         draft = new BookingRequest(request.getJourneyId(), request.getSeatId(), request.getTravelClass(),

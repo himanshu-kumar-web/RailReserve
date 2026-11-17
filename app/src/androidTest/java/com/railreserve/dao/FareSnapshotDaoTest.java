@@ -27,7 +27,7 @@ public class FareSnapshotDaoTest {
             try(SQLiteDatabase versionFour=SQLiteDatabase.openOrCreateDatabase(f.file,null)) {
                 versionFour.execSQL("DROP TABLE booking_fare_snapshots"); versionFour.setVersion(4);
             }
-            SQLiteDatabase upgraded=f.helper.getWritableDatabase(); assertEquals(7,upgraded.getVersion());
+            SQLiteDatabase upgraded=f.helper.getWritableDatabase(); assertEquals(8,upgraded.getVersion());
             for(String table:tables) assertEquals(expanded(schemas.get(table)),expanded(DatabaseUtils.stringForQuery(upgraded,"SELECT sql FROM sqlite_master WHERE name=?",new String[]{table})));
             assertEquals(0,DatabaseUtils.queryNumEntries(upgraded,"booking_fare_snapshots"));
             Booking preserved=f.service.findBookingByPnr(old.getPnr()); assertEquals(old.getId(),preserved.getId()); assertEquals(10000,preserved.getPayment().getAmountPaise());
@@ -62,26 +62,63 @@ public class FareSnapshotDaoTest {
             assertEquals("AVAILABLE 4",cancelled.getFareSnapshot().getAvailability()); assertEquals(6,f.service.getAvailableSeats(scenario.getJourneyId(),"SL").size());
         }
     }
-    @Test public void waitlistAndRacNeverPrepareOrPersistADemoBooking() {
+    @Test public void waitlistBookingHasNoSeatAndSimulatedConfirmationAllocatesOnlyAvailableInventory() {
         try(DemoPaymentTestDatabase f=new DemoPaymentTestDatabase()) {
             FareSnapshot available=quote(245); TrainSearchResult scenario=scenario(f,available);
-            for(String[] status:new String[][]{{"GNWL107/WL62","WAITLIST"},{"RAC 12","RAC"}}) {
-                FareSnapshot blocked=new FareSnapshot(available.getNumber(),available.getFrom(),available.getTo(),available.getDate(),
-                        available.getClassCode(),available.getQuota(),available.getAmountPaise(),available.getSource(),
-                        available.getRetrievedAt(),status[0],status[1],"RailCore availability",available.getAvailabilityRetrievedAt());
-                BookingRequest request=new BookingRequest(scenario.getJourneyId(),
-                        f.service.getAvailableSeats(scenario.getJourneyId(),"SL").get(0).getId(),TravelClass.SLEEPER,
-                        "Blocked Passenger",25,"Other","DEMO-CHK-"+UUID.randomUUID(),blocked.getAmountPaise(),blocked);
-                assertThrows(IllegalArgumentException.class,()->f.service.createBooking(request));
-                assertThrows(IllegalArgumentException.class,()->f.dao.createBooking(request));
-                assertThrows(IllegalArgumentException.class,()->new SimulationScenarioService(new SQLiteSimulationScenarioDao(f.helper))
-                        .prepare(new SimulationRequest("15004","TEST FIXTURE","GKP","Gorakhpur","PRYJ","Prayagraj",
-                                blocked.getDate(),TravelClass.SLEEPER,"20:00","08:00",0,1,blocked)));
-            }
-            assertTrue(f.service.getBookings().isEmpty());
-            assertEquals(6,f.service.getAvailableSeats(scenario.getJourneyId(),"SL").size());
-            assertEquals(0,DatabaseUtils.queryNumEntries(f.helper.getReadableDatabase(),"demo_payments"));
+            FareSnapshot waitlist = availability(available, "GNWL107/WL62", "WAITLIST");
+            TrainSearchResult waitlistScenario = new SimulationScenarioService(new SQLiteSimulationScenarioDao(f.helper))
+                    .prepare(new SimulationRequest("15004","TEST FIXTURE","GKP","Gorakhpur","PRYJ","Prayagraj",
+                            waitlist.getDate(),TravelClass.SLEEPER,"20:00","08:00",0,1,waitlist));
+            Booking first = f.service.createBooking(waitlistRequest(waitlistScenario, waitlist, "WL Passenger"));
+            Booking second = f.service.createBooking(waitlistRequest(waitlistScenario, waitlist, "Second WL Passenger"));
+            assertEquals("WAITING_LIST", first.getStatus());
+            assertEquals(Integer.valueOf(1), first.getWaitlistNumber());
+            assertEquals(Integer.valueOf(2), second.getWaitlistNumber());
+            assertEquals(0, first.getSeatId());
+            assertNull(first.getCoach());
+            assertEquals(6, f.service.getAvailableSeats(scenario.getJourneyId(),"SL").size());
+            Booking confirmed = f.service.confirmWaitingList(first.getId());
+            assertEquals("CONFIRMED", confirmed.getStatus());
+            assertTrue(confirmed.getSeatId() > 0);
+            assertNull(confirmed.getWaitlistNumber());
+            assertEquals(5, f.service.getAvailableSeats(scenario.getJourneyId(),"SL").size());
+
+            FareSnapshot rac = availability(available, "RAC 12", "RAC");
+            assertThrows(IllegalArgumentException.class, () -> rac.requireAvailableForBooking());
+            assertThrows(IllegalArgumentException.class, () -> f.service.createBooking(
+                    new BookingRequest(waitlistScenario.getJourneyId(), 0, TravelClass.SLEEPER, "RAC Passenger", 25, "Other",
+                            "DEMO-CHK-" + UUID.randomUUID(), rac.getAmountPaise(), rac)));
         }
+    }
+
+    @Test public void waitlistConfirmationCannotExceedLocalSeatCapacity() {
+        try(DemoPaymentTestDatabase f=new DemoPaymentTestDatabase()) {
+            FareSnapshot base = quote(245);
+            TrainSearchResult scenario = scenario(f, base);
+            FareSnapshot waitlist = availability(base, "GNWL10/WL1", "WAITLIST");
+            for (int i = 0; i < 7; i++) {
+                f.service.createBooking(waitlistRequest(scenario, waitlist, "WL Passenger " + i));
+            }
+            java.util.List<Booking> bookings = f.service.getBookings();
+            assertEquals(7, bookings.size());
+            for (int i = 0; i < 6; i++) {
+                assertEquals("CONFIRMED", f.service.confirmWaitingList(bookings.get(i).getId()).getStatus());
+            }
+            assertThrows(IllegalStateException.class, () -> f.service.confirmWaitingList(bookings.get(6).getId()));
+            assertEquals(0, f.service.getAvailableSeats(scenario.getJourneyId(), "SL").size());
+            assertEquals("WAITING_LIST", f.service.findBookingByPnr(bookings.get(6).getPnr()).getStatus());
+        }
+    }
+
+    private FareSnapshot availability(FareSnapshot base, String status, String type) {
+        return new FareSnapshot(base.getNumber(), base.getFrom(), base.getTo(), base.getDate(), base.getClassCode(),
+                base.getQuota(), base.getAmountPaise(), base.getSource(), base.getRetrievedAt(), status, type,
+                "RailCore availability", base.getAvailabilityRetrievedAt());
+    }
+
+    private BookingRequest waitlistRequest(TrainSearchResult scenario, FareSnapshot quote, String name) {
+        return new BookingRequest(scenario.getJourneyId(), 0, TravelClass.SLEEPER, name, 25, "Other",
+                "DEMO-CHK-" + UUID.randomUUID(), quote.getAmountPaise(), quote);
     }
     @Test public void laterQuoteDoesNotChangeOldBookingOrRefillScenario() {
         try(DemoPaymentTestDatabase f=new DemoPaymentTestDatabase()) {
