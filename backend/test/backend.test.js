@@ -71,6 +71,16 @@ test('fare fixtures preserve provenance and reject negative, non-INR and missing
   assert.throws(() => normalizeAvailability({ from_station_code: 'WRONG' }, requested), (error) => error.code === 'INVALID_PROVIDER_RESPONSE');
 });
 
+test('availability without the requested class is an explicit unknown status', () => {
+  const result = normalizeAvailability({
+    train_number: '12345', from_station_code: 'AAA', to_station_code: 'BBB',
+    journey_date: '2026-11-13', quota: 'GN',
+    classes: [{ class_code: 'SL', availability_text: 'AVAILABLE 4' }],
+  }, { number: '12345', source: 'AAA', destination: 'BBB', journeyDateValue: '2026-11-13', classCode: '3A', quotaCode: 'GN' });
+  assert.equal(result.availabilityStatus, 'Availability not provided for class 3A');
+  assert.equal(result.statusType, 'UNKNOWN');
+});
+
 test('enabled availability rejects another date and never permits intermediary caching', async () => {
   let date = '2026-11-14';
   const app = createApp({ client: fakeClient(async () => ({ journey_date: date, classes: [{ class_code: '3A', status: 'RAC', last_updated_at: '2026-11-12T10:00:00Z' }] })),
@@ -237,7 +247,7 @@ test('availability selects requested date only and preserves RAC, waitlist, and 
   assert.equal(normalizeAvailability({ classes: [{ class_code: '3A', status: 'AVAILABLE', availability_text: 'AVAILABLE-0042' }] }, requested).statusType, 'AVAILABLE');
   assert.equal(normalizeAvailability({ classes: [{ class_code: '3A', status: 'WAITLIST', availability_text: 'GNWL24/WL11' }] }, requested).statusType, 'WAITLIST');
   const missing = normalizeAvailability(payload, { ...requested, classCode: 'SL' });
-  assert.equal(missing.availabilityStatus, null);
+  assert.equal(missing.availabilityStatus, 'Availability not provided for class SL');
   assert.equal(missing.statusType, 'UNKNOWN');
 });
 

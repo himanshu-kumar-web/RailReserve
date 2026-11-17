@@ -59,7 +59,9 @@ public final class TicketPdfExporter {
         roundedBox(canvas, 34, 112, 561, 220, 14, Color.rgb(244, 248, 255));
         drawText(canvas, "LOCAL DEMO BOOKING ID", 54, 145, 300, 11, MUTED, true);
         drawText(canvas, value(booking.getPnr()), 54, 184, 320, 28, NAVY, true);
-        drawText(canvas, "Status: " + value(booking.getStatus()), 54, 207, 280, 12, TEAL, true);
+        drawText(canvas, "Status: " + value(booking.getStatus())
+                + ("WAITING_LIST".equals(booking.getStatus()) ? " · WL " + booking.getWaitlistNumber() : ""),
+                54, 207, 280, 12, TEAL, true);
         drawText(canvas, "This ID is not an Indian Railways PNR.", 330, 193, 205, 11, MUTED, false);
 
         drawText(canvas, "JOURNEY", 44, 268, 200, 12, TEAL, true);
@@ -77,14 +79,21 @@ public final class TicketPdfExporter {
         drawText(canvas, "JOURNEY DATE", 54, 445, 200, 10, MUTED, true);
         drawText(canvas, value(booking.getJourneyDate()), 155, 445, 375, 12, INK, false);
 
-        drawText(canvas, booking.getFareSnapshot() == null ? "PASSENGER & SEAT" : "PASSENGER & LIVE AVAILABILITY",
+        drawText(canvas, booking.getFareSnapshot() == null ? "PASSENGER & SEAT" : "PASSENGER & DEMO AVAILABILITY",
                 44, 496, 300, 12, TEAL, true);
         roundedBox(canvas, 34, 510, 561, 632, 12, Color.WHITE);
         drawText(canvas, value(booking.getPassengerName()), 54, 542, 300, 16, INK, true);
         drawText(canvas, "Age " + booking.getAge() + "  |  " + value(booking.getGender()),
                 355, 542, 185, 12, MUTED, false);
         String classLabel = booking.getTravelClass() == null ? "Not specified" : booking.getTravelClass().getLabel();
-        if (booking.getFareSnapshot() == null) {
+        if ("WAITING_LIST".equals(booking.getStatus())) {
+            drawText(canvas, "Class  |  " + classLabel, 54, 575, 480, 12, INK, true);
+            drawText(canvas, "Waiting list: WL " + booking.getWaitlistNumber(), 54, 592, 480, 12, TEAL, true);
+            drawText(canvas, "No seat allocated while this local booking is waitlisted.",
+                    54, 608, 480, 10, MUTED, false);
+            drawText(canvas, "Local simulation only; not a railway confirmation.",
+                    54, 624, 480, 10, MUTED, false);
+        } else if (booking.getFareSnapshot() == null) {
             drawText(canvas, "Coach " + value(booking.getCoach()) + "  |  Seat " + booking.getSeatNumber(),
                     54, 575, 280, 13, INK, true);
             drawText(canvas, "Class  |  " + classLabel, 355, 575, 185, 12, MUTED, false);
@@ -94,8 +103,8 @@ public final class TicketPdfExporter {
             drawText(canvas, "Provider status: " + value(booking.getFareSnapshot().getStatusType()),
                     54, 592, 480, 12, TEAL, true);
             drawText(canvas, value(booking.getFareSnapshot().getAvailability()), 54, 608, 480, 10, MUTED, false);
-            drawText(canvas, "No railway seat reserved; local demo only.",
-                    54, 624, 480, 10, MUTED, false);
+            drawText(canvas, "Local demo seat: " + value(booking.getCoach()) + " " + booking.getSeatNumber()
+                    + " · no railway seat reserved.", 54, 624, 480, 10, MUTED, false);
         }
 
         roundedBox(canvas, 34, 640, 561, 710, 12, Color.rgb(231, 244, 242));

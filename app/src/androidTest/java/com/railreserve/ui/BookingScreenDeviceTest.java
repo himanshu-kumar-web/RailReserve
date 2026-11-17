@@ -70,6 +70,7 @@ public class BookingScreenDeviceTest {
                     catch (InterruptedException e) { throw new IllegalStateException(e); }
                     return actual.createBooking(request);
                 }
+                @Override public Booking confirmWaitingList(long id) { return actual.confirmWaitingList(id); }
                 @Override public List<Booking> getBookings() { return actual.getBookings(); }
                 @Override public List<Booking> getVisibleBookings() { return actual.getVisibleBookings(); }
                 @Override public Booking findBookingByPnr(String pnr) { return actual.findBookingByPnr(pnr); }

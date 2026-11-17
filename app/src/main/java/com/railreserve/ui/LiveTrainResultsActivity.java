@@ -55,12 +55,15 @@ public final class LiveTrainResultsActivity extends AppCompatActivity {
                 : state.getString(LiveSearchActivity.EXTRA_DATE, getIntent().getStringExtra(LiveSearchActivity.EXTRA_DATE));
         updateRouteHeader();
         renderDateTabs();
-        progress = findViewById(R.id.liveResultsProgress);
-        status = findViewById(R.id.liveResultsStatus);
-        retry = findViewById(R.id.liveResultsRetry);
+        ListView resultsList = findViewById(R.id.liveResultsList);
+        View listHeader = getLayoutInflater().inflate(R.layout.view_live_results_header, resultsList, false);
+        resultsList.addHeaderView(listHeader, null, false);
+        progress = listHeader.findViewById(R.id.liveResultsProgress);
+        status = listHeader.findViewById(R.id.liveResultsStatus);
+        retry = listHeader.findViewById(R.id.liveResultsRetry);
         retry.setOnClickListener(view -> loadTrains());
-        adapter = new LiveTrainAdapter(this, this::openDetails);
-        ((ListView) findViewById(R.id.liveResultsList)).setAdapter(adapter);
+        adapter = new LiveTrainAdapter(this, sourceCode, sourceName, destinationCode, destinationName, this::openDetails);
+        resultsList.setAdapter(adapter);
         if (!validSearch()) {
             progress.setVisibility(View.GONE);
             showError("Search details are incomplete. Return to Live Train Search and choose both stations.", false);

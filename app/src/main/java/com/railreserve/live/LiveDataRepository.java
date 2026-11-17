@@ -65,11 +65,15 @@ public final class LiveDataRepository {
         return getSchedule(trainNumber, false);
     }
 
-    public synchronized LiveSchedule getSchedule(String trainNumber, boolean refresh) throws BackendException {
-        if (refresh) scheduleCache.remove(trainNumber);
-        if (scheduleCache.containsKey(trainNumber)) return scheduleCache.get(trainNumber);
+    public LiveSchedule getSchedule(String trainNumber, boolean refresh) throws BackendException {
+        synchronized (this) {
+            if (refresh) scheduleCache.remove(trainNumber);
+            if (scheduleCache.containsKey(trainNumber)) return scheduleCache.get(trainNumber);
+        }
         LiveSchedule schedule = LiveDataParser.parseSchedule(api.schedule(trainNumber));
-        if (!schedule.getStops().isEmpty()) scheduleCache.put(trainNumber, schedule);
+        if (!schedule.getStops().isEmpty()) {
+            synchronized (this) { scheduleCache.put(trainNumber, schedule); }
+        }
         return schedule;
     }
 }

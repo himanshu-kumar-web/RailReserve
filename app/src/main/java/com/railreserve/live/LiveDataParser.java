@@ -79,6 +79,9 @@ public final class LiveDataParser {
     public static LiveAvailability parseAvailability(JSONObject data) throws BackendException {
         String status = requiredString(data, "availabilityStatus");
         String statusType = requiredString(data, "statusType");
+        if (status == null && "UNKNOWN".equals(statusType)) {
+            status = "Availability not provided for this class";
+        }
         if (status == null || statusType == null) {
             throw malformed("Seat availability response was incomplete.");
         }
@@ -191,7 +194,7 @@ public final class LiveDataParser {
         if ("PROVIDER_TIMEOUT".equals(code)) return "Train-data service timed out. Check your connection and retry.";
         if ("PROVIDER_UNAVAILABLE".equals(code)) return "Unable to connect to the train-data provider. Try again later.";
         if ("INVALID_INPUT".equals(code)) return "Check the selected stations and journey date, then try again.";
-        if ("INVALID_PROVIDER_RESPONSE".equals(code) || "INVALID_RESPONSE".equals(code)) return "Train-data service returned an unexpected response.";
+        if ("INVALID_PROVIDER_RESPONSE".equals(code) || "INVALID_RESPONSE".equals(code)) return "The provider returned data that could not be verified for this request. Retry the check; no booking was made.";
         if ("NOT_FOUND".equals(code)) return "No train data was found for this request.";
         return "Unable to connect to the train-data service. Check your connection and try again.";
     }

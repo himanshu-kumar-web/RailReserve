@@ -7,6 +7,7 @@ import java.util.List;
 public interface BookingDao {
     List<Seat> getAvailableSeats(long journeyId, String travelClass);
     Booking createBooking(BookingRequest request);
+    Booking confirmWaitingList(long bookingId);
     List<Booking> getBookings();
     List<Booking> getVisibleBookings(LocalDate today);
     Booking findBookingByPnr(String pnr);

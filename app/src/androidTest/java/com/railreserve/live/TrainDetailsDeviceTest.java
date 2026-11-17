@@ -43,13 +43,16 @@ public class TrainDetailsDeviceTest {
         String[] offered = {"1A", "2A", "3A", "3E", "SL", "CC", "EC", "2S"};
         server.handler = path -> new LocalBackendFixture.Response(200, path.contains("/between") ? trains("90310", offered) : schedule("90310", offered));
         Activity results = start(route(LiveTrainResultsActivity.class));
-        waitFor(() -> ((ListView) results.findViewById(R.id.liveResultsList)).getAdapter().getCount() == 2);
+        waitFor(() -> {
+            ListView list = results.findViewById(R.id.liveResultsList);
+            return list.getAdapter().getCount() - list.getHeaderViewsCount() == 2;
+        });
         Instrumentation.ActivityMonitor monitor = instrumentation.addMonitor(TrainDetailsActivity.class.getName(), null, false);
         try {
             main(() -> {
                 assertFalse(hasSpinner(results.findViewById(android.R.id.content)));
                 ListView list = results.findViewById(R.id.liveResultsList);
-                View row = list.getAdapter().getView(0, null, list);
+                View row = list.getAdapter().getView(list.getHeaderViewsCount(), null, list);
                 row.performClick(); row.performClick(); return null;
             });
             Activity details = instrumentation.waitForMonitorWithTimeout(monitor, 5000); assertNotNull(details); opened.add(details);
@@ -70,6 +73,46 @@ public class TrainDetailsDeviceTest {
             });
             assertFalse(server.paths.stream().anyMatch(path -> path.contains("/fare") || path.contains("/availability")));
         } finally { instrumentation.removeMonitor(monitor); }
+    }
+
+    @Test public void resultCardFallsBackToSearchRouteAndShowsAllSevenRunningDayIndicators() throws Exception {
+        Activity host = start(new Intent(instrumentation.getTargetContext(), LiveSearchActivity.class));
+        try {
+            LiveTrain searched = new LiveTrain("11401", "PUNE SUPAUL EXP", "Express",
+                    new LiveStation("PRYJ", "Prayagraj Junction", null),
+                    new LiveStation("DDU", "Pt. Deen Dayal Upadhyaya Jn.", null),
+                    "19:47", 0, "22:58", 0, 191, 144.0, null,
+                    Arrays.asList("MON", "WED", "FRI"));
+            LiveSchedule schedule = LiveDataParser.parseSchedule(new JSONObject(
+                    "{\"train\":{\"number\":\"11401\",\"name\":\"PUNE SUPAUL EXP\","
+                            + "\"source\":{\"code\":\"PCOI\",\"name\":\"Prayagraj Chheoki\"},"
+                            + "\"destination\":{\"code\":\"DDU\",\"name\":\"Pt. Deen Dayal Upadhyaya Jn.\"}},"
+                            + "\"stops\":["
+                            + "{\"sequence\":1,\"station\":{\"code\":\"PCOI\",\"name\":\"Prayagraj Chheoki\"},\"departure\":\"19:30\",\"departureDay\":0,\"isHalt\":true},"
+                            + "{\"sequence\":2,\"station\":{\"code\":\"DDU\",\"name\":\"Pt. Deen Dayal Upadhyaya Jn.\"},\"arrival\":\"22:58\",\"arrivalDay\":0,\"isHalt\":true}]}"));
+            LiveTrain result = TrainScheduleMatcher.apply(searched, schedule);
+            AtomicReference<View> rowRef = new AtomicReference<>();
+            main(() -> {
+                com.railreserve.adapter.LiveTrainAdapter adapter = new com.railreserve.adapter.LiveTrainAdapter(
+                        host, "PRYJ", "Prayagraj Junction", "DDU", "Pt. Deen Dayal Upadhyaya Jn.", train -> { });
+                adapter.add(result);
+                rowRef.set(adapter.getView(0, null, new LinearLayout(host)));
+                return null;
+            });
+            View row = rowRef.get();
+            assertEquals(View.GONE, row.findViewById(R.id.liveTrainStationNotice).getVisibility());
+            assertEquals("19:47", ((TextView) row.findViewById(R.id.liveTrainDeparture)).getText().toString());
+            assertEquals("22:58", ((TextView) row.findViewById(R.id.liveTrainArrival)).getText().toString());
+            assertEquals("Prayagraj Junction (PRYJ)", ((TextView) row.findViewById(R.id.liveTrainSource)).getText().toString());
+            assertEquals("Pt. Deen Dayal Upadhyaya Jn. (DDU)",
+                    ((TextView) row.findViewById(R.id.liveTrainDestination)).getText().toString());
+            assertEquals(7, ((LinearLayout) row.findViewById(R.id.liveTrainRunningDays)).getChildCount());
+            assertEquals("3 days", ((TextView) row.findViewById(R.id.liveTrainRunningSummary)).getText().toString());
+            LinearLayout days = row.findViewById(R.id.liveTrainRunningDays);
+            assertEquals("Monday, train operates", days.getChildAt(0).getContentDescription());
+            assertEquals("Tuesday, train does not operate", days.getChildAt(1).getContentDescription());
+            assertEquals("Friday, train operates", days.getChildAt(4).getContentDescription());
+        } finally { main(() -> { host.finish(); return null; }); }
     }
 
     @Test public void scheduleSuppliesOnlyItsVerifiedClassesAndRotationDoesNotRepeatSlowRequest() throws Exception {
@@ -96,13 +139,16 @@ public class TrainDetailsDeviceTest {
         waitFor(() -> unknown.findViewById(R.id.detailsProgress).getVisibility() == View.GONE);
         main(() -> {
             assertEquals(0, ((LinearLayout) unknown.findViewById(R.id.detailsClasses)).getChildCount());
-            assertEquals(1, ((LinearLayout) unknown.findViewById(R.id.detailsDemoOnlyClasses)).getChildCount());
+            LinearLayout demos = unknown.findViewById(R.id.detailsDemoOnlyClasses);
+            assertEquals(2, demos.getChildCount());
+            assertFalse(demos.findViewWithTag("SL").findViewById(R.id.classDemoBook).isEnabled());
+            assertFalse(demos.findViewWithTag("3A").findViewById(R.id.classDemoBook).isEnabled());
             assertEquals(View.VISIBLE, unknown.findViewById(R.id.detailsDemoOnlyNotice).getVisibility()); return null;
         });
         Activity empty = start(detailsIntent("90313", new String[]{}, 1));
         waitFor(() -> empty.findViewById(R.id.detailsProgress).getVisibility() == View.GONE);
         main(() -> { assertEquals(0, ((LinearLayout) empty.findViewById(R.id.detailsClasses)).getChildCount());
-            assertEquals(0, ((LinearLayout) empty.findViewById(R.id.detailsDemoOnlyClasses)).getChildCount()); return null; });
+            assertEquals(2, ((LinearLayout) empty.findViewById(R.id.detailsDemoOnlyClasses)).getChildCount()); return null; });
     }
 
     @Test public void scheduleFailuresTerminateLoadingAndRetryWithoutLosingJourney() throws Exception {
@@ -127,9 +173,68 @@ public class TrainDetailsDeviceTest {
         Activity details = start(intent);
         waitFor(() -> details.findViewById(R.id.detailsClasses).findViewWithTag("3A") != null);
         main(() -> {
-            assertTrue(text(details, R.id.detailsJourney).contains("Departure: Not provided"));
+            assertTrue(text(details, R.id.detailsJourney).contains("Not verified at Alpha (AAA)"));
             assertFalse(details.findViewById(R.id.detailsClasses).findViewWithTag("3A").findViewById(R.id.classDemoBook).isEnabled()); return null;
         });
+    }
+
+    @Test public void nearbySearchResultOffersLiveChecksAndLocalBooking() throws Exception {
+        assumeTrue(BuildConfig.LIVE_FARE_ENABLED && BuildConfig.LIVE_AVAILABILITY_ENABLED);
+        server.handler = path -> new LocalBackendFixture.Response(200, path.contains("/fare")
+                ? LocalBackendFixture.enquiry("90318", "PCOI", "BBB", LocalDate.now().toString(), "2A", true, 245.0)
+                : path.contains("/availability")
+                ? LocalBackendFixture.availableEnquiry("90318", "PCOI", "BBB", LocalDate.now().toString(), "2A")
+                : nearbySchedule());
+        Activity details = start(detailsIntent("90318", new String[]{"1A", "2A", "3A", "SL"}, 1));
+        waitFor(() -> details.findViewById(R.id.detailsProgress).getVisibility() == View.GONE);
+        View twoTier = main(() -> details.findViewById(R.id.detailsClasses).findViewWithTag("2A"));
+        assertTrue(main(() -> text(details, R.id.detailsJourney).contains("Prayagraj Chheoki (PCOI)")));
+        assertTrue(main(() -> text(details, R.id.detailsJourney).contains("Not verified at Alpha (AAA)")));
+        assertFalse(main(() -> twoTier.findViewById(R.id.classDemoBook).isEnabled()));
+        assertFalse(main(() -> details.findViewById(R.id.detailsClasses).findViewWithTag("1A")
+                .findViewById(R.id.classDemoBook).isEnabled()));
+        assertTrue(main(() -> ((TextView) twoTier.findViewById(R.id.classDemoNotice))
+                .getText().toString().contains("Check a provider fare")));
+        assertEquals(BuildConfig.LIVE_FARE_ENABLED ? View.VISIBLE : View.GONE,
+                (int) main(() -> twoTier.findViewById(R.id.classFareCheck).getVisibility()));
+        assertEquals(BuildConfig.LIVE_AVAILABILITY_ENABLED ? View.VISIBLE : View.GONE,
+                (int) main(() -> twoTier.findViewById(R.id.classAvailabilityCheck).getVisibility()));
+        if (BuildConfig.LIVE_FARE_ENABLED) {
+            main(() -> { twoTier.findViewById(R.id.classFareCheck).performClick(); return null; });
+            waitFor(() -> ((TextView) twoTier.findViewById(R.id.classFare)).getText().toString().contains("245.00"));
+        }
+        if (BuildConfig.LIVE_AVAILABILITY_ENABLED) {
+            main(() -> { twoTier.findViewById(R.id.classAvailabilityCheck).performClick(); return null; });
+            waitFor(() -> ((TextView) twoTier.findViewById(R.id.classAvailability)).getText().toString().contains("AVAILABLE 4"));
+        }
+        assertTrue(main(() -> twoTier.findViewById(R.id.classDemoBook).isEnabled()));
+        assertTrue(main(() -> ((TextView) twoTier.findViewById(R.id.classDemoNotice))
+                .getText().toString().contains("actual scheduled stops")));
+
+        Instrumentation.ActivityMonitor monitor = instrumentation.addMonitor(BookingActivity.class.getName(), null, false);
+        try {
+            main(() -> { twoTier.findViewById(R.id.classDemoBook).performClick(); return null; });
+            Activity booking = instrumentation.waitForMonitorWithTimeout(monitor, 10000);
+            assertNotNull("Local demo booking should open passenger entry", booking);
+            opened.add(booking);
+            waitFor(() -> booking.findViewById(R.id.confirmBookingButton).isEnabled());
+            assertTrue(booking.getIntent().getBooleanExtra(BookingActivity.EXTRA_LIVE_SIMULATION, false));
+            assertEquals("2A", booking.getIntent().getStringExtra(BookingActivity.EXTRA_CLASS));
+            com.railreserve.model.FareSnapshot quote = (com.railreserve.model.FareSnapshot)
+                    booking.getIntent().getSerializableExtra(BookingActivity.EXTRA_FARE_SNAPSHOT);
+            assertNotNull(quote);
+            quote.requireContext("90318", "PCOI", "BBB", LocalDate.now().toString(), "2A", "GN");
+            assertEquals(24500, quote.getAmountPaise());
+            assertEquals(View.GONE, booking.findViewById(R.id.bookingSeatPicker).getVisibility());
+            assertTrue(text(booking, R.id.bookingTrainSummary).contains("PCOI"));
+            assertFalse(text(booking, R.id.bookingTrainSummary).contains("AAA"));
+            waitFor(() -> text(booking, R.id.bookingFareSummary).contains("245.00"));
+            assertTrue(text(booking, R.id.bookingSelectedSeat).contains("No railway seat is reserved"));
+            assertEquals(1, server.paths.stream().filter(path -> path.contains("/fare")).count());
+            assertEquals(1, server.paths.stream().filter(path -> path.contains("/availability")).count());
+            assertTrue(server.paths.stream().filter(path -> path.contains("/fare") || path.contains("/availability"))
+                    .allMatch(path -> path.contains("source=PCOI") && path.contains("destination=BBB")));
+        } finally { instrumentation.removeMonitor(monitor); }
     }
 
     @Test public void enabledFixtureChecksKeepProvenanceRejectDuplicatesAndExpire() throws Exception {
@@ -217,7 +322,8 @@ public class TrainDetailsDeviceTest {
             main(()->{ card(details).findViewById(R.id.classAvailabilityCheck).performClick(); return null; });
             waitFor(()->((TextView)card(details).findViewById(R.id.classAvailability)).getText().toString().contains(value[0]));
             assertTrue(main(()->((TextView)card(details).findViewById(R.id.classAvailability)).getText().toString()).contains("Status: "+value[1]));
-            assertEquals("AVAILABLE".equals(value[1]), main(() -> card(details).findViewById(R.id.classDemoBook).isEnabled()));
+            assertEquals("AVAILABLE".equals(value[1]) || "WAITLIST".equals(value[1]),
+                    main(() -> card(details).findViewById(R.id.classDemoBook).isEnabled()));
         }
     }
 
@@ -341,14 +447,25 @@ public class TrainDetailsDeviceTest {
             .putExtra(LiveSearchActivity.EXTRA_DATE, LocalDate.now().toString()); }
     private Intent detailsIntent(String number, String[] classes, int arrivalDay) {
         return route(TrainDetailsActivity.class).putExtra(TrainDetailsActivity.EXTRA_TRAIN,
-                new LiveTrain(number, "TEST FIXTURE " + number, "Express", null, null, "22:00", 0, "06:00", arrivalDay, 480, null, null,
+                new LiveTrain(number, "TEST FIXTURE " + number, "Express", new LiveStation("AAA","Alpha",null),
+                        new LiveStation("BBB","Beta",null), "22:00", 0, "06:00", arrivalDay, 480, null, null,
                         Arrays.asList("MON"), classes == null ? null : Arrays.asList(classes), "RailCore route search"));
     }
     private String schedule(String number, String[] classes) {
         try { JSONObject train = new JSONObject().put("number", number).put("name", "TEST FIXTURE");
             if (classes != null) train.put("classes", new JSONArray(Arrays.asList(classes))).put("classSource", "RailCore schedule");
-            return new JSONObject().put("success", true).put("data", new JSONObject().put("train", train).put("stops", new JSONArray("[{\"station\":{\"code\":\"AAA\"},\"sequence\":1}]"))).toString();
+            return new JSONObject().put("success", true).put("data", new JSONObject().put("train", train).put("source",new JSONObject().put("code","AAA"))
+                    .put("destination",new JSONObject().put("code","BBB")).put("stops", new JSONArray("["
+                            + "{\"station\":{\"code\":\"AAA\",\"name\":\"Alpha\"},\"sequence\":1,\"departure\":\"22:00\",\"departureDay\":0,\"isHalt\":true},"
+                            + "{\"station\":{\"code\":\"BBB\",\"name\":\"Beta\"},\"sequence\":2,\"arrival\":\"06:00\",\"arrivalDay\":1,\"isHalt\":true}]"))).toString();
         } catch (Exception e) { throw new AssertionError(e); }
+    }
+    private String nearbySchedule() {
+        return "{\"success\":true,\"data\":{\"train\":{\"number\":\"90318\",\"name\":\"TEST FIXTURE\","
+                + "\"source\":{\"code\":\"PCOI\",\"name\":\"Prayagraj Chheoki\"},"
+                + "\"destination\":{\"code\":\"BBB\",\"name\":\"Beta\"}},\"stops\":["
+                + "{\"station\":{\"code\":\"PCOI\",\"name\":\"Prayagraj Chheoki\"},\"sequence\":1,\"departure\":\"22:00\",\"departureDay\":0,\"isHalt\":true},"
+                + "{\"station\":{\"code\":\"BBB\",\"name\":\"Beta\"},\"sequence\":2,\"arrival\":\"06:00\",\"arrivalDay\":1,\"isHalt\":true}]}}";
     }
     private String trains(String number, String[] classes) {
         try { JSONObject train = new JSONObject().put("number", number).put("name", "TEST FIXTURE").put("classes", new JSONArray(Arrays.asList(classes)))

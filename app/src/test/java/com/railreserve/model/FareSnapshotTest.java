@@ -17,9 +17,10 @@ public class FareSnapshotTest {
         assertEquals(245,snapshot.getFareRupees()); assertEquals(24500,snapshot.getAmountPaise());
         assertEquals("GNWL107/WL62",snapshot.getAvailability()); assertEquals("WAITLIST",snapshot.getStatusType());
     }
-    @Test public void liveBookingRequiresFreshAvailableStatus() {
+    @Test public void liveBookingAllowsFreshAvailableOrWaitlistStatusButNotRac() {
         FareSnapshot waitlist = quote(24500,Instant.now().toString());
-        assertThrows(IllegalArgumentException.class,waitlist::requireAvailableForBooking);
+        waitlist.requireAvailableForBooking();
+        assertTrue(waitlist.isWaitingList());
         FareSnapshot rac = new FareSnapshot("15004","GKP","PRYJ","2026-11-15","SL","GN",24500,
                 "RailCore fare estimate",Instant.now().toString(),"RAC 12","RAC","RailCore availability",Instant.now().toString());
         assertThrows(IllegalArgumentException.class,rac::requireAvailableForBooking);

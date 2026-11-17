@@ -52,11 +52,16 @@ public final class FareSnapshot implements Serializable {
         if (age > 60_000 || age < -300_000) {
             throw new IllegalArgumentException("Live availability expired. Check availability again. No demo booking was created.");
         }
-        if (!"AVAILABLE".equalsIgnoreCase(statusType.trim())) {
+        if ("UNKNOWN".equalsIgnoreCase(statusType.trim())) {
+            throw new IllegalArgumentException("The provider did not return a usable availability status for this route and class. No demo booking was created.");
+        }
+        if (!"AVAILABLE".equalsIgnoreCase(statusType.trim())
+                && !"WAITLIST".equalsIgnoreCase(statusType.trim())) {
             throw new IllegalArgumentException("The provider reports " + statusType + " (" + availability
                     + "). Booking is blocked; no demo booking was created.");
         }
     }
+    public boolean isWaitingList() { return "WAITLIST".equalsIgnoreCase(statusType == null ? "" : statusType.trim()); }
     public void requireContext(String number, String from, String to, String date, String clazz, String quota) {
         validate();
         if (!Objects.equals(this.number, number) || !Objects.equals(this.from, from) || !Objects.equals(this.to, to)

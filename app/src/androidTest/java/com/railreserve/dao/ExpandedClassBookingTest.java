@@ -80,9 +80,11 @@ public class ExpandedClassBookingTest {
                 old.execSQL("CREATE VIEW fixture_confirmed AS SELECT booking_id FROM bookings WHERE booking_status='CONFIRMED'");
                 for(String table:tables) rows.put(table,rows(old,table));
             }
-            SQLiteDatabase upgraded=f.helper.getWritableDatabase(); assertEquals(7,upgraded.getVersion());
+            SQLiteDatabase upgraded=f.helper.getWritableDatabase(); assertEquals(8,upgraded.getVersion());
             for(String table:tables) {
-                List<String> expected = "bookings".equals(table) ? withHiddenFlag(rows.get(table)) : rows.get(table);
+                List<String> expected = "bookings".equals(table)
+                        ? withWaitlistColumns(rows.get(table), rows.get("seats"))
+                        : rows.get(table);
                 assertEquals(table,expected,rows(upgraded,table));
             }
             assertEquals(1,DatabaseUtils.longForQuery(upgraded,"PRAGMA foreign_keys",null));
@@ -106,9 +108,27 @@ public class ExpandedClassBookingTest {
         return result;
     }
 
-    private List<String> withHiddenFlag(List<String> rows) {
+    private List<String> withWaitlistColumns(List<String> bookings, List<String> seats) {
+        Map<String, String> journeyBySeat = new HashMap<>();
+        for (String row : seats) {
+            String[] columns = row.split("\\|", -1);
+            journeyBySeat.put(columns[0], columns[1]);
+        }
         List<String> updated = new ArrayList<>();
-        for (String row : rows) updated.add(row + "0|");
+        for (String row : bookings) {
+            String[] columns = row.split("\\|", -1);
+            String journeyId = journeyBySeat.get(columns[2]);
+            assertNotNull("legacy booking seat must resolve to a journey", journeyId);
+            StringBuilder migrated = new StringBuilder()
+                    .append(columns[0]).append('|')
+                    .append(columns[1]).append('|')
+                    .append(journeyId).append('|')
+                    .append(columns[2]).append("|<null>|");
+            for (int i = 3; i < columns.length - 1; i++) {
+                migrated.append(columns[i]).append('|');
+            }
+            updated.add(migrated.append("0|").toString());
+        }
         return updated;
     }
 

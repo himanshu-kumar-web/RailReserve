@@ -91,6 +91,7 @@ public class BookingServiceImplTest {
             createCount++;
             return null;
         }
+        @Override public Booking confirmWaitingList(long bookingId) { return null; }
         @Override public List<Booking> getBookings() { return Collections.emptyList(); }
         @Override public List<Booking> getVisibleBookings(LocalDate today) { return Collections.emptyList(); }
         @Override public Booking findBookingByPnr(String pnr) {

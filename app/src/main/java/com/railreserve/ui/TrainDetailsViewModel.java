@@ -60,6 +60,10 @@ public final class TrainDetailsViewModel extends ViewModel {
             long age = java.time.Duration.between(Instant.parse(check.fare.getRetrievedAt()),Instant.now()).toMillis();
             if (age > 60_000 || age < -300_000) expire(check,true);
         }
+        if (check != null && check.availability != null && check.availability.getRetrievedAt() != null) {
+            long age = java.time.Duration.between(Instant.parse(check.availability.getRetrievedAt()),Instant.now()).toMillis();
+            if (age > 60_000 || age < -300_000) expire(check,false);
+        }
         return check;
     }
 

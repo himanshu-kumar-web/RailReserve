@@ -95,7 +95,10 @@ public class LiveJourneyDeviceTest {
         Instrumentation.ActivityMonitor monitor = null;
         try {
             waitUntil(() -> results.findViewById(R.id.liveResultsProgress).getVisibility() != View.VISIBLE);
-            int count = onMain(() -> ((ListView) results.findViewById(R.id.liveResultsList)).getAdapter().getCount());
+            int count = onMain(() -> {
+                ListView list = results.findViewById(R.id.liveResultsList);
+                return list.getAdapter().getCount() - list.getHeaderViewsCount();
+            });
             if (count == 0) {
                 assertEquals("No trains were returned for this route and date.",
                         onMain(() -> ((TextView) results.findViewById(R.id.liveResultsStatus)).getText().toString()));
@@ -104,7 +107,7 @@ public class LiveJourneyDeviceTest {
             monitor = instrumentation.addMonitor(com.railreserve.ui.TrainDetailsActivity.class.getName(), null, false);
             onMain(() -> {
                 ListView list = results.findViewById(R.id.liveResultsList);
-                View row = list.getAdapter().getView(0, null, list);
+                View row = list.getAdapter().getView(list.getHeaderViewsCount(), null, list);
                 row.performClick();
                 return null;
             });

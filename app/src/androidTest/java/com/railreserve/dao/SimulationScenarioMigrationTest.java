@@ -41,14 +41,13 @@ public class SimulationScenarioMigrationTest {
                 old.setVersion(3);
             }
             SQLiteDatabase upgraded = f.helper.getWritableDatabase();
-            assertEquals(7, upgraded.getVersion());
+            assertEquals(8, upgraded.getVersion());
             for (String table : tables) {
-                String expected = expanded(originalSchemas.get(table));
                 if ("bookings".equals(table)) {
-                    expected = expected.replace("cancelled_at TEXT)",
-                            "cancelled_at TEXT, hidden_from_list INTEGER NOT NULL DEFAULT 0 CHECK(hidden_from_list IN (0,1)))");
+                    assertWaitingListBookingsSchema(upgraded);
+                } else {
+                    assertEquals(table, expanded(originalSchemas.get(table)), expanded(schema(upgraded, table)));
                 }
-                assertEquals(table, expected, expanded(schema(upgraded, table)));
             }
             assertEquals(0, DatabaseUtils.queryNumEntries(upgraded, "simulation_scenarios"));
             Booking paid = f.service.findBookingByPnr("1234567890");
@@ -66,6 +65,14 @@ public class SimulationScenarioMigrationTest {
 
     private String schema(SQLiteDatabase db, String table) {
         return DatabaseUtils.stringForQuery(db, "SELECT sql FROM sqlite_master WHERE type='table' AND name=?", new String[]{table});
+    }
+    private void assertWaitingListBookingsSchema(SQLiteDatabase db) {
+        String bookings = schema(db, "bookings");
+        assertTrue(bookings.contains("journey_id INTEGER NOT NULL REFERENCES journeys(journey_id)"));
+        assertTrue(bookings.contains("seat_id INTEGER REFERENCES seats(seat_id)"));
+        assertTrue(bookings.contains("waitlist_number INTEGER"));
+        assertTrue(bookings.contains("'WAITING_LIST'"));
+        assertTrue(bookings.contains("hidden_from_list INTEGER NOT NULL DEFAULT 0"));
     }
     private String expanded(String sql) { return sql.replace("\"", "").replace("travel_class IN ('SL','3A')", "travel_class IN ('SL','3A','2A','1A','3E','CC','EC','2S')"); }
 

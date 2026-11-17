@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class MyBookingsActivity extends AppCompatActivity implements BookingAdapter.CancelListener, BookingAdapter.RemoveListener {
+public class MyBookingsActivity extends AppCompatActivity implements BookingAdapter.CancelListener, BookingAdapter.RemoveListener, BookingAdapter.WaitingListListener {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final List<Booking> allBookings = new ArrayList<>();
     private BookingService service;
@@ -48,6 +48,7 @@ public class MyBookingsActivity extends AppCompatActivity implements BookingAdap
     private boolean cancellationDialogShowing;
     private boolean removalInProgress;
     private boolean removalDialogShowing;
+    private boolean confirmationInProgress;
     private boolean bookingsLoaded;
 
     @Override protected void onCreate(Bundle state) {
@@ -71,7 +72,7 @@ public class MyBookingsActivity extends AppCompatActivity implements BookingAdap
         searchInput = findViewById(R.id.bookingSearchInput);
         statusSpinner = findViewById(R.id.bookingStatusSpinner);
         sortSpinner = findViewById(R.id.bookingSortSpinner);
-        adapter = new BookingAdapter(this, this, this);
+        adapter = new BookingAdapter(this, this, this, this);
         list.setAdapter(adapter);
         emptySearchButton.setOnClickListener(view -> {
             Intent intent = new Intent(this, AppSectionActivity.class);
@@ -198,7 +199,9 @@ public class MyBookingsActivity extends AppCompatActivity implements BookingAdap
                 .setMessage("Demo PNR " + booking.getPnr() + "\n"
                         + booking.getTrainName() + "\n"
                         + booking.getJourneyDate() + "\n"
-                        + (booking.getFareSnapshot() == null
+                        + ("WAITING_LIST".equals(booking.getStatus())
+                        ? "WL " + booking.getWaitlistNumber() + " · no seat is allocated"
+                        : booking.getFareSnapshot() == null
                         ? booking.getCoach() + " Seat " + booking.getSeatNumber()
                         : "Provider status: " + booking.getFareSnapshot().getStatusType() + " (enquiry only)")
                         + "\nThe local demo reservation will be cancelled; no railway seat is held.")
@@ -214,6 +217,49 @@ public class MyBookingsActivity extends AppCompatActivity implements BookingAdap
                 }));
         dialog.show();
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(0xff9a3328);
+    }
+
+    @Override public void onConfirmWaitingList(Booking booking) {
+        if (confirmationInProgress || destroyed || booking == null) return;
+        new AlertDialog.Builder(this)
+                .setTitle("Simulate local confirmation?")
+                .setMessage("This may allocate an available seat in the local demo database. It is not a railway or IRCTC confirmation.")
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton("Simulate", (dialog, which) -> confirmWaitingList(booking))
+                .show();
+    }
+
+    private void confirmWaitingList(Booking booking) {
+        if (confirmationInProgress || destroyed) return;
+        confirmationInProgress = true;
+        adapter.setConfirmationInProgress(true);
+        executor.execute(() -> {
+            try {
+                Booking confirmed = service.confirmWaitingList(booking.getId());
+                runOnUiThread(() -> {
+                    if (destroyed) return;
+                    confirmationInProgress = false;
+                    adapter.setConfirmationInProgress(false);
+                    Toast.makeText(this, "Local simulation confirmed with " + confirmed.getCoach()
+                            + " seat " + confirmed.getSeatNumber() + ". Not a railway confirmation.",
+                            Toast.LENGTH_LONG).show();
+                    loadBookings();
+                });
+            } catch (Exception exception) {
+                runOnUiThread(() -> {
+                    if (destroyed) return;
+                    confirmationInProgress = false;
+                    adapter.setConfirmationInProgress(false);
+                    new AlertDialog.Builder(this)
+                            .setTitle("Could not confirm in local simulation")
+                            .setMessage(exception.getMessage() == null
+                                    ? "No local seat was allocated; the booking remains waitlisted."
+                                    : exception.getMessage())
+                            .setPositiveButton(android.R.string.ok, null)
+                            .show();
+                });
+            }
+        });
     }
 
     private void performCancellation(Booking booking) {
