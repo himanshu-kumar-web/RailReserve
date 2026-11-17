@@ -66,6 +66,20 @@ public class TrainScheduleMatcherTest {
         assertFalse(result.isRouteVerified());
     }
 
+    @Test public void repeatedDestinationIsMatchedAfterBoardingNotBefore() throws Exception {
+        LiveSchedule schedule = LiveDataParser.parseSchedule(new JSONObject(
+                "{\"train\":{\"number\":\"11401\",\"name\":\"LOOP TEST TRAIN\"},\"stops\":["
+                        + "{\"sequence\":1,\"station\":{\"code\":\"PRYJ\"},\"departure\":\"08:00\",\"isHalt\":true},"
+                        + "{\"sequence\":2,\"station\":{\"code\":\"DDU\"},\"departure\":\"12:00\",\"isHalt\":true},"
+                        + "{\"sequence\":3,\"station\":{\"code\":\"PRYJ\"},\"arrival\":\"16:00\",\"isHalt\":true}]}"));
+        TrainEnquiryRoute route = TrainScheduleMatcher.resolveEnquiryRoute(searchedTrain("DDU", "PRYJ"), schedule);
+        assertNotNull("A later halt at the same destination is valid", route);
+        assertEquals("DDU", route.getBoardingStop().getStation().getCode());
+        assertEquals("PRYJ", route.getAlightingStop().getStation().getCode());
+        assertEquals("16:00", route.getAlightingStop().getArrival());
+        assertTrue(route.usesSearchedDestination());
+    }
+
     @Test public void nearbyRouteUsesOnlyAuthoritativeScheduleEndpointsAndNeverReversesTrainDirection() throws Exception {
         LiveSchedule schedule = LiveDataParser.parseSchedule(new JSONObject(
                 "{\"train\":{\"number\":\"11401\",\"name\":\"PUNE SUPAUL EXP\","
