@@ -282,9 +282,20 @@ public class TrainDetailsDeviceTest {
                 quote.requireContext("90330","AAA","BBB",LocalDate.now().toString(),code,"GN");
                 assertEquals(87500,quote.getAmountPaise()); assertEquals("RailCore fare estimate",quote.getSource()); assertNotNull(quote.getRetrievedAt());
                 assertEquals("AVAILABLE 4",quote.getAvailability());
-                main(()->{ assertEquals(6,((Spinner)booking.findViewById(R.id.seatSpinner)).getAdapter().getCount());
+                main(()->{
+                    assertEquals(6,((Spinner)booking.findViewById(R.id.seatSpinner)).getAdapter().getCount());
                     assertEquals(View.GONE,booking.findViewById(R.id.bookingSeatPicker).getVisibility());
-                    assertTrue(text(booking,R.id.bookingFareSummary).contains("875.00")); booking.finish(); return null; });
+                    assertTrue(text(booking,R.id.bookingFareSummary).contains("875.00"));
+                    // The hidden seat picker must not block live-derived Demo UPI review.
+                    ((TextView)booking.findViewById(R.id.passengerNameInput)).setText("Checkout Regression");
+                    ((TextView)booking.findViewById(R.id.passengerAgeInput)).setText("25");
+                    ((Spinner)booking.findViewById(R.id.genderSpinner)).setSelection(3);
+                    booking.findViewById(R.id.confirmBookingButton).performClick();
+                    assertEquals("Review must open for class " + code, View.VISIBLE,
+                            booking.findViewById(R.id.demoCheckoutPanel).getVisibility());
+                    assertTrue(text(booking,R.id.checkoutTotal).contains("875.00"));
+                    booking.finish(); return null;
+                });
                 instrumentation.waitForIdleSync();
             } finally { instrumentation.removeMonitor(monitor); }
         }
