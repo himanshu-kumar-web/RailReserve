@@ -68,6 +68,9 @@ RailReserve includes the following features:
 - Check fare and availability for a selected train when enabled
 - Block live-derived demo checkout unless a fresh matching enquiry reports `AVAILABLE`; WAITLIST, RAC, unknown, missing, or expired status creates no booking
 - Show the provider availability status on live-derived tickets rather than presenting a locally generated seat as a railway assignment
+- Automatically select an available local simulation seat for live-derived checkout, without requiring selection in the hidden seat picker
+- Review passenger details and the captured fare in a Demo UPI panel before simulating payment
+- Generate one 10-digit demo PNR after successful checkout; cancellation releases the local seat and records a simulated refund
 - Save booking information locally in SQLite
 - Download a PDF copy of a confirmed demo ticket using Android's save-file picker
 - Retrieve and manage previously booked records
@@ -190,14 +193,17 @@ RailReserve/
 
 A typical user flow in the project is as follows:
 
-1. User opens the Android app.
-2. User selects source and destination stations.
-3. User chooses travel date and class.
-4. The app searches available trains.
-5. User views route and train details.
-6. The user can check live data or use the local demo mode.
-7. For live-derived demo checkout, the app verifies fresh fare and `AVAILABLE` status before it creates a local booking; WAITLIST/RAC and other unverified states stop without a ticket record.
-8. The user can view, search, and manage bookings later.
+1. User opens Live Train Search and selects source, destination, and journey date.
+2. The app searches trains, and the user opens a train's details.
+3. User selects a supported class and checks its fare and availability.
+4. A fresh matching fare and `AVAILABLE` result enable **Simulate Booking**. WAITLIST, RAC, unknown, missing, or expired results block live-derived checkout.
+5. The app prepares local simulation inventory for the selected train, route, date, and class. Supported classes are `SL`, `3A`, `2A`, `1A`, `3E`, `CC`, `EC`, and `2S`.
+6. User enters passenger name, age, and gender, then taps **Review demo booking**. An available local demo seat is selected automatically; the hidden seat picker is not required.
+7. The Demo UPI review panel displays the captured provider fare. Review does not create a booking or reserve a seat.
+8. User completes simulated payment. The app saves a local booking, demo payment receipt, and a single 10-digit demo PNR.
+9. User can find the booking by PNR and cancel it. Cancellation releases the local seat and records a simulated refund.
+
+The existing seeded Demo Booking flow also remains available. Both flows are local simulations: no real money moves and no railway seat is assigned or reserved.
 
 ## 12. Setup and Run Instructions
 
@@ -205,7 +211,7 @@ A typical user flow in the project is as follows:
 
 - Android Studio installed
 - Android SDK Platform 37 or compatible version
-- JDK 17 or later
+- JDK 17, matching the configured Gradle daemon toolchain
 - Node.js 24.5 or later
 - npm
 - At least one RailCore API key for live backend access; two optional keys can be configured as HTTP 429 fallbacks
@@ -215,7 +221,7 @@ A typical user flow in the project is as follows:
 From the project root, run:
 
 ```powershell
-.\gradlew.bat :app:assembleDebug
+.\gradlew.bat :app:assembleDebug -PrailreserveDebugBackendUrl=https://railreserve-x8fq.onrender.com
 ```
 
 The APK will be generated in:
@@ -223,6 +229,15 @@ The APK will be generated in:
 ```text
 app\build\outputs\apk\debug\app-debug.apk
 ```
+
+The debug backend defaults to `https://railreserve-x8fq.onrender.com`. Install an updated APK without clearing existing booking data:
+
+```powershell
+adb devices -l
+adb install -r .\app\build\outputs\apk\debug\app-debug.apk
+```
+
+The checked-in wrapper currently references a local Gradle ZIP under `C:/Users/Lenovo/Downloads`. If that file is unavailable, use an existing Gradle 9.5.0 installation with JDK 17. The verification below used the cached Gradle 9.5.0 installation without changing project versions.
 
 ### Backend Setup
 
@@ -244,17 +259,48 @@ The project includes testing for both the application and backend.
 
 ```powershell
 .\gradlew.bat :app:testDebugUnitTest
+.\gradlew.bat :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug
 ```
 
 ### Backend Tests
 
 ```powershell
 Set-Location .\backend
-npm test
-npm run lint
+npm.cmd test
+npm.cmd run lint
 ```
 
-These tests validate core logic and ensure the project remains stable as features evolve.
+On Windows PowerShell, `npm.cmd` avoids execution-policy restrictions on `npm.ps1`. On other platforms, use `npm`.
+
+### Live Simulation Booking Verification — 17 November 2026
+
+[PR #6](https://github.com/ritesh-paswan/RailReserve/pull/6), merged as `5e097e7ca8aa8b3b7026a1dad2b61e51d300a28c`, fixes a blocked transition from passenger details to Demo UPI review. Previously, Review read the selected item of a hidden seat spinner and could show **Choose an available seat**. Live simulations now use the first available local seat from the loaded inventory; seeded-demo bookings retain their visible seat selection.
+
+The following checks were executed on the merged fix, with additional isolated regression coverage in a local `LiveSimulationCheckoutTest.java` test file. That additional test file is not included in this documentation update.
+
+| Check | Final result |
+| --- | --- |
+| Backend fixture tests | 30 passed |
+| Backend lint | Passed |
+| Android JVM tests | 34 passed |
+| Booking and checkout device suite | 35 passed |
+| Train-details provider-fixture device suite | 11 passed |
+| Seeded-demo UI journey | 1 passed |
+| Debug APK and instrumentation APK builds | Passed |
+| Android lint | Passed with 225 warnings and no errors |
+| `git diff --check` | Passed |
+
+Device checks ran on a connected Xiaomi `2312DRA50I` phone. All eight supported classes progressed from passenger details to payment review using valid fixture quotes and local inventory. Additional isolated checks verified payment with the hidden spinner's adapter removed, unchanged captured fare, repeated Review/Pay taps, checkout recreation, one 10-digit PNR, PNR lookup, cancellation, local seat release, simulated refund, and a clear exhausted-inventory error.
+
+An initial test run used a test APK that did not yet include the new regression class; rebuilding and reinstalling corrected that class-loading error. One expired-fare fixture test timed out initially, then passed both in isolation and in a full suite rerun. These initial failures are not included as successful runs in the table.
+
+Automated provider checks used fixtures and consumed no RailCore credits. Isolated test databases were deleted. The seeded UI journey created and cancelled a uniquely named **Demo UPI Verification** booking; its cancelled record remains. Existing personal bookings were preserved. The final HTTPS app and instrumentation APKs were installed using `adb install -r`.
+
+### Remaining Manual Live-Provider Check
+
+The complete journey using a fresh response from the deployed provider remains unverified. Direct ADB taps were rejected by the phone's `INJECT_EVENTS` permission restriction; in-app instrumentation tests ran successfully.
+
+On the installed HTTPS build, manually search a live train, retrieve a fresh matching fare and `AVAILABLE` result, tap **Simulate Booking**, enter passenger details, and open **Review demo booking**. Confirm that the fare stays unchanged through Demo UPI payment, then look up the generated PNR and cancel the test booking. Use a uniquely named test passenger and preserve personal booking records. Fixture results above do not establish success for this deployed-provider journey.
 
 ## 14. Limitations
 
