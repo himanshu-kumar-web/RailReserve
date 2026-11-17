@@ -127,6 +127,12 @@ public class BookingActivity extends AppCompatActivity {
         selectedSeatSummary = findViewById(R.id.bookingSelectedSeat);
         fareSummary = findViewById(R.id.bookingFareSummary);
         genderError = findViewById(R.id.genderError);
+        if (liveSimulation) {
+            selectedSeatSummary.setText("A local demo seat will be allocated automatically. No railway seat is reserved.");
+            if (fareSnapshot != null) {
+                fareSummary.setText("Captured estimate: " + PaymentReceiptText.amount(fareSnapshot.getAmountPaise()));
+            }
+        }
 
         seatAdapter = new ArrayAdapter<Seat>(this, android.R.layout.simple_spinner_item, new ArrayList<>()) {
             private View priced(View view,int position) {
@@ -212,6 +218,12 @@ public class BookingActivity extends AppCompatActivity {
                     seatAdapter.clear();
                     seatAdapter.addAll(seats);
                     confirmButton.setEnabled(!seats.isEmpty() && (!liveSimulation || fareSnapshot != null));
+                    if (liveSimulation && !seats.isEmpty()) {
+                        selectedSeatSummary.setText("A local demo seat will be allocated automatically. No railway seat is reserved.");
+                        if (fareSnapshot != null) {
+                            fareSummary.setText("Captured estimate: " + PaymentReceiptText.amount(fareSnapshot.getAmountPaise()));
+                        }
+                    }
                     if (seats.isEmpty()) {
                         seatStatus.setText(liveSimulation ? "Local demo inventory is unavailable; no ticket was created."
                                 : "No seats remain in this class for this journey.");
@@ -259,9 +271,15 @@ public class BookingActivity extends AppCompatActivity {
             genderError.setVisibility(View.VISIBLE);
             return;
         }
-        Seat selectedSeat = (Seat) seatSpinner.getSelectedItem();
+        // The live-simulation spinner is intentionally hidden. Never depend on its
+        // View selection state: allocate the first available LOCAL demo seat instead.
+        Seat selectedSeat = liveSimulation
+                ? (seatAdapter.getCount() > 0 ? seatAdapter.getItem(0) : null)
+                : (Seat) seatSpinner.getSelectedItem();
         if (selectedSeat == null) {
-            seatStatus.setText("Choose an available seat.");
+            seatStatus.setText(liveSimulation
+                    ? "No local demo seats remain for this train, date and class."
+                    : "Choose an available seat.");
             seatStatus.setVisibility(View.VISIBLE);
             return;
         }
@@ -323,7 +341,8 @@ public class BookingActivity extends AppCompatActivity {
         findViewById(R.id.bookingForm).setVisibility(reviewing ? View.GONE : View.VISIBLE);
         findViewById(R.id.demoCheckoutPanel).setVisibility(reviewing ? View.VISIBLE : View.GONE);
         progress.setVisibility(submitting ? View.VISIBLE : View.GONE);
-        confirmButton.setEnabled(!reviewing && seatAdapter.getCount() > 0);
+        confirmButton.setEnabled(!reviewing && seatAdapter.getCount() > 0
+                && (!liveSimulation || fareSnapshot != null));
         if (!reviewing) return;
         boolean complete = result.getBooking() != null;
         checkoutSummary.setText(submission.getReviewSummary());
