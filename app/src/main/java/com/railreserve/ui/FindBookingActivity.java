@@ -131,7 +131,8 @@ public final class FindBookingActivity extends AppCompatActivity {
         boolean cancelled = "CANCELLED".equalsIgnoreCase(booking.getStatus());
         boolean waitingList = "WAITING_LIST".equals(booking.getStatus());
         resultStatus.setText("Local demo: " + booking.getStatus()
-                + (waitingList ? " · WL " + booking.getWaitlistNumber() : ""));
+                + (BookingSeatDisplay.hasNoAllocatedSeat(booking)
+                ? " · WL " + booking.getWaitlistNumber() : ""));
         resultStatus.setBackgroundResource(cancelled ? R.drawable.status_cancelled
                 : waitingList ? R.drawable.status_waiting_list : R.drawable.status_confirmed);
         train.setText(booking.getTrainName() + "  ·  " + booking.getTrainNumber());
@@ -140,9 +141,9 @@ public final class FindBookingActivity extends AppCompatActivity {
                 + "Departure  " + booking.getDeparture() + "     Arrival  " + booking.getArrival()
                 + (booking.getArrivalDayOffset() > 0 ? " (next day)" : ""));
         passenger.setText(booking.getPassengerName() + "  ·  " + booking.getAge() + " years  ·  " + booking.getGender());
-        seat.setText(waitingList
-                ? booking.getTravelClass().getLabel() + "  ·  WL " + booking.getWaitlistNumber()
-                        + "  ·  No seat allocated while waitlisted. Local simulation only."
+        seat.setText(BookingSeatDisplay.hasNoAllocatedSeat(booking)
+                ? booking.getTravelClass().getLabel() + "  ·  " + BookingSeatDisplay.waitlistDescription(booking)
+                        + " Local simulation only."
                 : booking.getFareSnapshot() == null
                 ? booking.getTravelClass().getLabel() + "  ·  " + booking.getCoach() + " " + booking.getSeatNumber()
                 : booking.getTravelClass().getLabel() + "  ·  Local demo seat: " + booking.getCoach() + " "
