@@ -30,9 +30,13 @@ public final class TrainScheduleMatcher {
         int boarding = searchedSource >= 0 ? searchedSource : findEndpoint(stops, schedule.getSource(), true);
         if (boarding < 0) return null;
 
-        int searchedDestination = findBoardingStop(stops, train.getDestination());
-        if (searchedDestination >= 0 && searchedDestination <= boarding) return null;
-        int alighting = searchedDestination > boarding
+        // A route may visit the same station more than once. Match the destination
+        // after the selected boarding stop, rather than its first occurrence.
+        int searchedDestination = findAlightingStop(stops, train.getDestination(), boarding);
+        // If the searched destination occurs only before boarding, the requested
+        // direction is invalid; do not silently substitute a different terminus.
+        if (searchedDestination < 0 && findBoardingStop(stops, train.getDestination()) >= 0) return null;
+        int alighting = searchedDestination >= 0
                 ? searchedDestination : findEndpoint(stops, schedule.getDestination(), false);
         if (alighting <= boarding) return null;
         return new TrainEnquiryRoute(stops.get(boarding), stops.get(alighting),

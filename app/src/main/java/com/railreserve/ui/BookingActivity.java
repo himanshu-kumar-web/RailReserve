@@ -400,7 +400,7 @@ public class BookingActivity extends AppCompatActivity {
         if (confirmationDialog != null && confirmationDialog.isShowing()) return;
         View confirmation = getLayoutInflater().inflate(R.layout.dialog_booking_confirmation, null);
         ((TextView) confirmation.findViewById(R.id.confirmationStatus)).setText("Local demo: " + booking.getStatus()
-                + ("WAITING_LIST".equals(booking.getStatus()) ? " · WL " + booking.getWaitlistNumber() : ""));
+                + (BookingSeatDisplay.hasNoAllocatedSeat(booking) ? " · WL " + booking.getWaitlistNumber() : ""));
         ((TextView) confirmation.findViewById(R.id.confirmationPnr)).setText(booking.getPnr());
         TicketUi.bindCopy(confirmation,booking.getPnr());
         ((TextView) confirmation.findViewById(R.id.confirmationTrain)).setText(
@@ -412,9 +412,9 @@ public class BookingActivity extends AppCompatActivity {
                         + booking.getArrival() + (booking.getArrivalDayOffset() > 0 ? " (+1 day)" : ""));
         ((TextView) confirmation.findViewById(R.id.confirmationPassenger)).setText(
                 "Passenger  |  " + booking.getPassengerName() + ", age " + booking.getAge());
-        ((TextView) confirmation.findViewById(R.id.confirmationSeatClass)).setText("WAITING_LIST".equals(booking.getStatus())
-                ? "Class  |  " + booking.getTravelClass().getLabel() + "\nWL " + booking.getWaitlistNumber()
-                        + " · No seat allocated while waitlisted.\nLocal simulation only; not a railway-confirmed ticket."
+        ((TextView) confirmation.findViewById(R.id.confirmationSeatClass)).setText(BookingSeatDisplay.hasNoAllocatedSeat(booking)
+                ? "Class  |  " + booking.getTravelClass().getLabel() + "\n" + BookingSeatDisplay.waitlistDescription(booking)
+                        + "\nLocal simulation only; not a railway-confirmed ticket."
                 : booking.getFareSnapshot() == null
                 ? "Seat  |  " + booking.getCoach() + " - " + booking.getSeatNumber()
                         + "     Class  |  " + booking.getTravelClass().getLabel()

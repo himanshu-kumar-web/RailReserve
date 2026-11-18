@@ -48,6 +48,7 @@ public final class TicketPdfExporter {
     }
 
     private static void drawTicket(Canvas canvas, Booking booking) {
+        boolean seatlessWaitlist = booking.getSeatId() <= 0 && booking.getWaitlistNumber() != null;
         canvas.drawColor(Color.WHITE);
         Paint fill = paint(NAVY, false);
         canvas.drawRect(0, 0, PAGE_WIDTH, 170, fill);
@@ -60,7 +61,7 @@ public final class TicketPdfExporter {
         drawText(canvas, "LOCAL DEMO BOOKING ID", 54, 145, 300, 11, MUTED, true);
         drawText(canvas, value(booking.getPnr()), 54, 184, 320, 28, NAVY, true);
         drawText(canvas, "Status: " + value(booking.getStatus())
-                + ("WAITING_LIST".equals(booking.getStatus()) ? " · WL " + booking.getWaitlistNumber() : ""),
+                + (seatlessWaitlist ? " · WL " + booking.getWaitlistNumber() : ""),
                 54, 207, 280, 12, TEAL, true);
         drawText(canvas, "This ID is not an Indian Railways PNR.", 330, 193, 205, 11, MUTED, false);
 
@@ -86,10 +87,12 @@ public final class TicketPdfExporter {
         drawText(canvas, "Age " + booking.getAge() + "  |  " + value(booking.getGender()),
                 355, 542, 185, 12, MUTED, false);
         String classLabel = booking.getTravelClass() == null ? "Not specified" : booking.getTravelClass().getLabel();
-        if ("WAITING_LIST".equals(booking.getStatus())) {
+        if (seatlessWaitlist) {
             drawText(canvas, "Class  |  " + classLabel, 54, 575, 480, 12, INK, true);
             drawText(canvas, "Waiting list: WL " + booking.getWaitlistNumber(), 54, 592, 480, 12, TEAL, true);
-            drawText(canvas, "No seat allocated while this local booking is waitlisted.",
+            drawText(canvas, "CANCELLED".equalsIgnoreCase(booking.getStatus())
+                    ? "Cancelled wait-list booking; no seat was allocated."
+                    : "No seat allocated while this local booking is waitlisted.",
                     54, 608, 480, 10, MUTED, false);
             drawText(canvas, "Local simulation only; not a railway confirmation.",
                     54, 624, 480, 10, MUTED, false);

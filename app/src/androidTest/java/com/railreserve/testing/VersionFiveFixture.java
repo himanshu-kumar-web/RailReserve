@@ -5,7 +5,11 @@ import android.database.sqlite.SQLiteDatabase;
 /** Exact pre-fix version-5 schema, only for isolated migration fixtures. */
 public final class VersionFiveFixture {
     private VersionFiveFixture() { }
-    public static void create(SQLiteDatabase db) {
+    public static void create(SQLiteDatabase db) { create(db, 5); }
+
+    public static void createVersionSeven(SQLiteDatabase db) { create(db, 7); }
+
+    private static void create(SQLiteDatabase db, int version) {
         for (String sql : new String[]{
             "CREATE TABLE trains (train_id INTEGER PRIMARY KEY, train_number TEXT NOT NULL UNIQUE, name TEXT NOT NULL, source_station TEXT NOT NULL, destination_station TEXT NOT NULL, departure_time TEXT NOT NULL, arrival_time TEXT NOT NULL, arrival_day_offset INTEGER NOT NULL CHECK(arrival_day_offset IN (0,1)))",
             "CREATE TABLE journeys (journey_id INTEGER PRIMARY KEY, train_id INTEGER NOT NULL REFERENCES trains(train_id), journey_date TEXT NOT NULL, UNIQUE(train_id,journey_date))",
@@ -20,7 +24,15 @@ public final class VersionFiveFixture {
             "CREATE TABLE IF NOT EXISTS bookings (booking_id INTEGER PRIMARY KEY AUTOINCREMENT, pnr TEXT NOT NULL UNIQUE, seat_id INTEGER NOT NULL REFERENCES seats(seat_id), passenger_name TEXT NOT NULL CHECK(length(trim(passenger_name)) BETWEEN 2 AND 80), passenger_age INTEGER NOT NULL CHECK(passenger_age BETWEEN 1 AND 120), passenger_gender TEXT NOT NULL CHECK(passenger_gender IN ('Female','Male','Other')), travel_class TEXT NOT NULL CHECK(travel_class IN ('SL','3A')), fare INTEGER NOT NULL CHECK(fare>=0), booking_status TEXT NOT NULL CHECK(booking_status IN ('CONFIRMED','CANCELLED')), booked_at TEXT NOT NULL, cancelled_at TEXT)",
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_one_confirmed_booking_per_seat ON bookings(seat_id) WHERE booking_status='CONFIRMED'",
             "CREATE INDEX IF NOT EXISTS idx_bookings_booked_at ON bookings(booked_at DESC)"
-        }) db.execSQL(sql);
-        db.setVersion(5);
+        }) {
+            if (version == 7) {
+                sql = sql.replace("travel_class IN ('SL','3A')",
+                        "travel_class IN ('SL','3A','2A','1A','3E','CC','EC','2S')")
+                        .replace("booked_at TEXT NOT NULL, cancelled_at TEXT)",
+                                "booked_at TEXT NOT NULL, cancelled_at TEXT, hidden_from_list INTEGER NOT NULL DEFAULT 0 CHECK(hidden_from_list IN (0,1)))");
+            }
+            db.execSQL(sql);
+        }
+        db.setVersion(version);
     }
 }

@@ -82,8 +82,11 @@ public class LiveDataParserTest {
         assertEquals("AVAILABLE 4", availability.getStatus());
         assertEquals("AVAILABLE", availability.getStatusType());
         assertEquals("2026-10-25", availability.getJourneyDate());
+        LiveAvailability unknown = LiveDataParser.parseAvailability(new JSONObject("{\"statusType\":\"UNKNOWN\"}"));
+        assertEquals("UNKNOWN", unknown.getStatusType());
+        assertEquals("Availability not provided for this class", unknown.getStatus());
         assertThrows(BackendException.class,
-                () -> LiveDataParser.parseAvailability(new JSONObject("{\"statusType\":\"UNKNOWN\"}")));
+                () -> LiveDataParser.parseAvailability(new JSONObject("{\"statusType\":\"AVAILABLE\"}")));
     }
 
     @Test public void rejectsUnexpectedEnvelopesAndMapsSanitizedBackendErrors() throws Exception {

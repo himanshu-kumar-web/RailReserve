@@ -101,8 +101,8 @@ public final class BookingAdapter extends BaseAdapter {
         ((TextView) view.findViewById(R.id.bookingPassenger)).setText(
                 "Passenger  |  " + booking.getPassengerName() + ", age " + booking.getAge());
         String classFare = booking.getTravelClass().getLabel();
-        if ("WAITING_LIST".equals(booking.getStatus())) {
-            classFare += "  |  WL " + booking.getWaitlistNumber() + "  |  No seat allocated while waitlisted  |  Local demo";
+        if (com.railreserve.ui.BookingSeatDisplay.hasNoAllocatedSeat(booking)) {
+            classFare += "  |  " + com.railreserve.ui.BookingSeatDisplay.waitlistDescription(booking) + "  |  Local demo";
         } else if (booking.getFareSnapshot() == null) {
             classFare += "  |  " + booking.getCoach() + " Seat " + booking.getSeatNumber()
                     + "  |  Local demo fare ";
@@ -117,7 +117,8 @@ public final class BookingAdapter extends BaseAdapter {
         TextView status = view.findViewById(R.id.bookingStatus);
         boolean waitingList = "WAITING_LIST".equals(booking.getStatus());
         status.setText("Local demo: " + booking.getStatus()
-                + (waitingList ? " · WL " + booking.getWaitlistNumber() : ""));
+                + (com.railreserve.ui.BookingSeatDisplay.hasNoAllocatedSeat(booking)
+                ? " · WL " + booking.getWaitlistNumber() : ""));
         status.setBackgroundResource(confirmed ? R.drawable.status_confirmed
                 : waitingList ? R.drawable.status_waiting_list : R.drawable.status_cancelled);
         status.setTextColor(confirmed ? 0xff20624e : waitingList ? 0xff9a5c00 : 0xff9a3e31);
