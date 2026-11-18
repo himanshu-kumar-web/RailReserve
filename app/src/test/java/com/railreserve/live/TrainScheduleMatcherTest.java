@@ -96,4 +96,28 @@ public class TrainScheduleMatcherTest {
         assertFalse(enquiry.usesSearchedDestination());
         assertNull(TrainScheduleMatcher.resolveEnquiryRoute(searchedTrain("DDU", "PRYJ"), schedule));
     }
+
+    @Test public void repeatedDestinationAlsoUpdatesTheVerifiedDisplayedArrival() throws Exception {
+        LiveSchedule schedule = LiveDataParser.parseSchedule(new JSONObject(
+                "{\"train\":{\"number\":\"11401\",\"name\":\"Route Fixture\"},\"stops\":["
+                        + "{\"sequence\":1,\"station\":{\"code\":\"PRYJ\"},\"arrival\":\"08:00\",\"isHalt\":true},"
+                        + "{\"sequence\":2,\"station\":{\"code\":\"DDU\"},\"departure\":\"12:00\",\"isHalt\":true},"
+                        + "{\"sequence\":3,\"station\":{\"code\":\"PRYJ\"},\"arrival\":\"16:00\",\"isHalt\":true}]}"));
+        LiveTrain result = TrainScheduleMatcher.apply(searchedTrain("DDU", "PRYJ"), schedule);
+        assertTrue(result.isRouteVerified());
+        assertEquals("12:00", result.getDeparture());
+        assertEquals("16:00", result.getArrival());
+    }
+
+    @Test public void reversedScheduledDirectionCannotFallBackToAnotherTerminus() throws Exception {
+        LiveSchedule schedule = LiveDataParser.parseSchedule(new JSONObject(
+                "{\"train\":{\"number\":\"11401\",\"name\":\"Route Fixture\"},\"stops\":["
+                        + "{\"sequence\":1,\"station\":{\"code\":\"PRYJ\"},\"departure\":\"08:00\",\"isHalt\":true},"
+                        + "{\"sequence\":2,\"station\":{\"code\":\"DDU\"},\"departure\":\"12:00\",\"isHalt\":true},"
+                        + "{\"sequence\":3,\"station\":{\"code\":\"GAYA\"},\"arrival\":\"16:00\",\"isHalt\":true}]}"));
+        LiveTrain searched = searchedTrain("DDU", "PRYJ");
+        assertNull(TrainScheduleMatcher.resolveEnquiryRoute(searched, schedule));
+        assertFalse(TrainScheduleMatcher.apply(searched, schedule).isRouteVerified());
+        assertNull(TrainScheduleMatcher.resolveEnquiryRoute(searched, null));
+    }
 }
